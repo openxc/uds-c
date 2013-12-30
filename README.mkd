@@ -1,7 +1,73 @@
 OBD-II Support Library in C
 =============================
 
+TODO isotp needs to accept responses on an ID other that the request's arb id -
+or maybe we have 2 isotp instances, for rx and tx.
+
+* Response's arb id is assigned ID plus 0x8
+* Functional daignostic request (Broadcast), 0x7df arb id
+* Standard ECU requests to 0x7e0 - 0x7e7
+
+* Some requests don't need PIDs - e.g. mode 3
+    * some responses don't have PIDs, just payload - e.g. mode 3
+
+* Service ID + 0x40 == positive response
+* Response includes PID echo - use this to match up request/response
+* Response ID, ISO-TP PCI, ISO-TP length, service response ID, PID echo, data
+
+I send the request and give a callback
+when the response arrives for the matchin service and PID - on any arb id, since
+this may be a broadcast - call my callback.
+
+
+TODO do you want to provide the callback to the Handler, or to each
+individual send?o
+ok, what are the use cases here.
+
+you're going to request a few PIDs over and over again at some frequency
+you're going to request DTCs once and read the response
+you're going to clear DTCs once
+
+i'd rather use the same diagnostic handler to send all of the differet messages
+rather than create one for each use. that way ai can
+
+but that does complicate the memory management because it'll need to create
+some internal data structures.
+
+at the simplest, what does this handler have to do?
+
+* store the request arb id, mode, pid, and payload locally
+* send a can message
+* get all new can messages passed to it
+* Check the incoming can message to see if it matches one of the standard ECU
+  response IDs, or our arb ID + 0x8
+* if it matches, parse the diagnostic response and call the callback
+
+that seems pretty simple and not worth greatly increasing the internal state to
+handle multiple requests
+
+what we need is another layer on top of that to handle the repeated requests.
+
 ## API
+
+    void my_callback(const DiagnosticResponse* response) {
+    }
+
+    DiagnosticRequestHandler handler = diagnostic_init(my_callback);
+    DiagnosticRequest request = {
+        arbitratin_id: 0x7df,
+        mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST,
+        pid: 3
+    };
+
+    diagnostic_send(&handler, &request);
+    while(true) {
+        diagnostic_handle_can_frame(&handler, 42, data, 8);
+    }
+
+    diagnostic_request_pid(&handler, DIAGNOSTIC_STANDARD_PID, 42
+
+    diagnostic_destroy(&handler);
 
 ## Testing
 
