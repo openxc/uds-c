@@ -114,6 +114,8 @@ typedef struct {
     IsoTpHandler isotp_handler;
     // TODO the Handle may need to keep the original request, otherwise we can't
     // compare an incoming CAN message to see if it matches the service / PID!
+    // TODO i'm not sure this type/callback in here is too useful - see the
+    // comments in obd2.c:diagnostic_request
     DiagnosticRequestType type;
     DiagnosticResponseReceived callback;
     DiagnosticMilStatusReceived mil_status_callback;
@@ -129,7 +131,6 @@ typedef enum {
 typedef struct {
     IsoTpShims isotp_shims;
     LogShim log;
-    SendCanMessageShim send_can_message;
 } DiagnosticShims;
 
 DiagnosticShims diagnostic_init_shims(LogShim log,
