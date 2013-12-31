@@ -16,9 +16,14 @@ typedef struct {
     uint16_t arbitration_id;
     uint8_t mode;
     uint16_t pid;
+    uint8_t pid_length;
     uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];
     uint8_t payload_length;
 } DiagnosticRequest;
+
+// TODO I don't like this, it's hard coding isotp library stuff here
+typedef bool (*SendIsoTpMessageShim)(IsoTpHandler* handler,
+        const uint8_t* payload, uint16_t payload_size);
 
 // Thanks to
 // http://www.canbushack.com/blog/index.php?title=scanning-for-diagnostic-data&more=1&c=1&tb=1&pb=1
@@ -116,6 +121,7 @@ typedef struct {
     // compare an incoming CAN message to see if it matches the service / PID!
     // TODO i'm not sure this type/callback in here is too useful - see the
     // comments in obd2.c:diagnostic_request
+
     DiagnosticRequestType type;
     DiagnosticResponseReceived callback;
     DiagnosticMilStatusReceived mil_status_callback;
@@ -129,7 +135,8 @@ typedef enum {
 } DiagnosticPidRequestType;
 
 typedef struct {
-    IsoTpShims isotp_shims;
+    SetTimerShim set_timer;
+    SendCanMessageShim send_can_message;
     LogShim log;
 } DiagnosticShims;
 
@@ -160,6 +167,11 @@ bool diagnostic_clear_dtc(DiagnosticShims* shims);
 
 DiagnosticRequestHandle diagnostic_enumerate_pids(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticPidEnumerationReceived callback);
+
+// TODO
+// void diagnostic_receive_isotp_message(DiagnosticRequestHandle* handle,
+        // const IsoTpMessage* message);
+void diagnostic_receive_isotp_message(const IsoTpMessage* message);
 
 void diagnostic_receive_can_frame(DiagnosticRequestHandle* handle,
         const uint16_t arbitration_id, const uint8_t data[],
