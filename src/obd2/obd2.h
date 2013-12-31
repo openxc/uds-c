@@ -12,11 +12,6 @@ extern "C" {
 #define MAX_OBD2_PAYLOAD_LENGTH 7
 #define VIN_LENGTH 17
 
-typedef void (*LogShim)(const char* message);
-typedef bool (*SendCanMessageShim)(const uint16_t arbitration_id,
-        const uint8_t* data, const uint8_t size);
-typedef bool (*SetTimerShim)(uint16_t time_ms, void (*callback));
-
 typedef struct {
     uint16_t arbitration_id;
     uint8_t mode;
@@ -29,6 +24,7 @@ typedef struct {
 // http://www.canbushack.com/blog/index.php?title=scanning-for-diagnostic-data&more=1&c=1&tb=1&pb=1
 // for the list of NRCs
 typedef enum {
+    NRC_SUCCESS = 0x0,
     NRC_SERVICE_NOT_SUPPORTED = 0x11,
     NRC_SUB_FUNCTION_NOT_SUPPORTED = 0x12,
     NRC_CONDITIONS_NOT_CORRECT = 0x22,
@@ -162,7 +158,7 @@ bool diagnostic_clear_dtc(DiagnosticShims* shims);
 DiagnosticRequestHandle diagnostic_enumerate_pids(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticPidEnumerationReceived callback);
 
-void diagnostic_receive_can_frame(DiagnosticRequestHandle* handler,
+void diagnostic_receive_can_frame(DiagnosticRequestHandle* handle,
         const uint16_t arbitration_id, const uint8_t data[],
         const uint8_t size);
 
