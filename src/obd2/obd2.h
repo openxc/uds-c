@@ -112,6 +112,8 @@ typedef enum {
 
 typedef struct {
     IsoTpHandler isotp_handler;
+    // TODO the Handle may need to keep the original request, otherwise we can't
+    // compare an incoming CAN message to see if it matches the service / PID!
     DiagnosticRequestType type;
     DiagnosticResponseReceived callback;
     DiagnosticMilStatusReceived mil_status_callback;
