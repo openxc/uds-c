@@ -22,7 +22,7 @@ typedef struct {
 } DiagnosticRequest;
 
 // TODO I don't like this, it's hard coding isotp library stuff here
-typedef bool (*SendIsoTpMessageShim)(IsoTpHandler* handler,
+typedef bool (*SendIsoTpMessageShim)(IsoTpHandle* handle,
         const uint8_t* payload, uint16_t payload_size);
 
 // Thanks to
@@ -68,6 +68,7 @@ typedef struct {
     uint16_t arbitration_id;
     uint8_t mode;
     bool success;
+    bool completed;
     // if mode is one with a PID, read the correct numbers of PID bytes (1 or 2)
     // into this field, then store the remainder of the payload in the payload
     // field
@@ -116,7 +117,11 @@ typedef enum {
 } DiagnosticRequestType;
 
 typedef struct {
-    IsoTpHandler isotp_handler;
+    bool success;
+    bool completed;
+    IsoTpShims isotp_shims;
+    IsoTpHandle isotp_send_handle;
+    IsoTpHandle isotp_receive_handle;
     // TODO the Handle may need to keep the original request, otherwise we can't
     // compare an incoming CAN message to see if it matches the service / PID!
     // TODO i'm not sure this type/callback in here is too useful - see the
@@ -126,7 +131,6 @@ typedef struct {
     DiagnosticResponseReceived callback;
     DiagnosticMilStatusReceived mil_status_callback;
     DiagnosticVinReceived vin_callback;
-    bool status;
 } DiagnosticRequestHandle;
 
 typedef enum {
@@ -168,12 +172,8 @@ bool diagnostic_clear_dtc(DiagnosticShims* shims);
 DiagnosticRequestHandle diagnostic_enumerate_pids(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticPidEnumerationReceived callback);
 
-// TODO
-// void diagnostic_receive_isotp_message(DiagnosticRequestHandle* handle,
-        // const IsoTpMessage* message);
-void diagnostic_receive_isotp_message(const IsoTpMessage* message);
-
-void diagnostic_receive_can_frame(DiagnosticRequestHandle* handle,
+DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
+        DiagnosticRequestHandle* handle,
         const uint16_t arbitration_id, const uint8_t data[],
         const uint8_t size);
 

@@ -21,8 +21,8 @@ START_TEST (test_receive_wrong_arb_id)
 
     fail_if(last_response_was_received);
     const uint8_t can_data[] = {0x2, request.mode + 0x40, 0x23};
-    diagnostic_receive_can_frame(&handle, request.arbitration_id, can_data,
-            sizeof(can_data));
+    diagnostic_receive_can_frame(&SHIMS, &handle, request.arbitration_id,
+            can_data, sizeof(can_data));
     fail_if(last_response_was_received);
 }
 END_TEST
@@ -36,10 +36,15 @@ START_TEST (test_send_diag_request)
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
             response_received_handler);
 
+    fail_if(handle.completed);
+
     fail_if(last_response_was_received);
     const uint8_t can_data[] = {0x2, request.mode + 0x40, 0x23};
-    diagnostic_receive_can_frame(&handle, request.arbitration_id + 0x8,
-            can_data, sizeof(can_data));
+    DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS, &handle,
+            request.arbitration_id + 0x8, can_data, sizeof(can_data));
+    fail_unless(response.success);
+    fail_unless(response.completed);
+    fail_unless(handle.completed);
     fail_unless(last_response_was_received);
     ck_assert(last_response_received.success);
     ck_assert_int_eq(last_response_received.arbitration_id,
@@ -60,7 +65,7 @@ START_TEST (test_request_pid_standard)
     fail_if(last_response_was_received);
     const uint8_t can_data[] = {0x3, 0x1 + 0x40, 0x2, 0x45};
     // TODO need a constant for the 7df broadcast functional request
-    diagnostic_receive_can_frame(&handle, 0x7df + 0x8,
+    diagnostic_receive_can_frame(&SHIMS, &handle, 0x7df + 0x8,
             can_data, sizeof(can_data));
     fail_unless(last_response_was_received);
     ck_assert(last_response_received.success);
@@ -82,7 +87,7 @@ START_TEST (test_request_pid_enhanced)
     fail_if(last_response_was_received);
     const uint8_t can_data[] = {0x4, 0x1 + 0x40, 0x0, 0x2, 0x45};
     // TODO need a constant for the 7df broadcast functional request
-    diagnostic_receive_can_frame(&handle, 0x7df + 0x8, can_data,
+    diagnostic_receive_can_frame(&SHIMS, &handle, 0x7df + 0x8, can_data,
             sizeof(can_data));
     fail_unless(last_response_was_received);
     ck_assert(last_response_received.success);

@@ -53,21 +53,21 @@ what we need is another layer on top of that to handle the repeated requests.
     void my_callback(const DiagnosticResponse* response) {
     }
 
-    DiagnosticRequestHandler handler = diagnostic_init(my_callback);
+    DiagnosticRequestHandle handle = diagnostic_init(my_callback);
     DiagnosticRequest request = {
         arbitratin_id: 0x7df,
         mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST,
         pid: 3
     };
 
-    diagnostic_send(&handler, &request);
+    diagnostic_send(&handle, &request);
     while(true) {
-        diagnostic_handle_can_frame(&handler, 42, data, 8);
+        diagnostic_handle_can_frame(&handle, 42, data, 8);
     }
 
-    diagnostic_request_pid(&handler, DIAGNOSTIC_STANDARD_PID, 42
+    diagnostic_request_pid(&handle, DIAGNOSTIC_STANDARD_PID, 42
 
-    diagnostic_destroy(&handler);
+    diagnostic_destroy(&handle);
 
 ## Testing
 

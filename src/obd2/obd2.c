@@ -20,7 +20,8 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
     DiagnosticRequestHandle handle = {
         type: DIAGNOSTIC_REQUEST_TYPE_PID,
         callback: callback,
-        status: true
+        success: false,
+        completed: false
     };
     uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE];
     payload[MODE_BYTE_INDEX] = request->mode;
@@ -33,38 +34,79 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
                 request->payload, request->payload_length);
     }
 
-    IsoTpShims isotp_shims = isotp_init_shims(shims->log,
+    handle.isotp_shims = isotp_init_shims(shims->log,
             shims->send_can_message,
             shims->set_timer);
-    handle.status = isotp_send(&isotp_shims, request->arbitration_id,
-            payload, 1 + request->payload_length + request->pid_length,
-            diagnostic_receive_isotp_message);
+    handle.isotp_send_handle = isotp_send(&handle.isotp_shims,
+            request->arbitration_id, payload,
+            1 + request->payload_length + request->pid_length,
+            // TODO is this ok to pass null here?
+            NULL);
 
-    // TODO need to set up an isotp receive handler. in isotp, rx and tx are
-    // kind of intermingled at this point. really, there's not explicit link
-    // between send and receveice...well except for flow control. hm, damn.
-    // so there's 2 things:
-    //
-    // isotp_send needs to return a handle. if it was a single frame, we
-    // probably sent it right away so the status true and the callback was hit.
-    // the handle needs another flag to say if it was completed or not, so you
-    // know you can destroy it. you will continue to throw can frames at that
-    // handler until it returns completed (either with a  flag, or maybe
-    // receive_can_frame returns true if it's complete)
-    //
-    // the second thing is that we need to be able to arbitrarly set up to
-    // receive an iso-tp message on a particular arb id. again, you keep
-    // throwing can frames at it until it returns a handle with the status
-    // completed and calls your callback
-    //
-    // so the diagnostic request needs 2 isotp handles and they should both be
-    // hidden from the user
-    //
+    handle.isotp_receive_handle = isotp_receive(&handle.isotp_shims,
+            // TODO need to either always add 0x8 or let the user specify
+            request->arbitration_id + 0x8,
+            // TODO this callback is mostly useful for debugging stuff as it
+            // doesn't have the internal state we need to complete the
+            // diagnositc request - can we pass NULL or will that 'splode?
+            NULL);
+
     // when a can frame is received and passes to the diagnostic handle
     // if we haven't successfuly sent the entire message yet, give it to the
     // isottp send handle
     // if we have sent it, give it to the isotp rx handle
     // if we've received properly, mark this request as completed
+    // how do you get the result? we have it set up for callbacks but that's
+    // getting to be kind of awkward
+    //
+    // say it were to call a callback...what state would it need to pass?
+    //
+    // the iso-tp message received callback needs to pass the handle and the
+    // received message
+    //
+    // so in the obd2 library, we get a callback with an isotp message. how do
+    // we know what diag request i went with, and which diag callback to use? we
+    // could store context with the isotp handle. the problem is that context is
+    // self referential and on the stack, so we really can't get a pointer to
+    // it.
+    //
+    // the diagnostic response received callback needs to pass the diagnostic
+    // handle and the diag response
+    //
+    // let's say we simplify things and drop the callbacks.
+    //
+    // isotp_receive_can_frame returns an isotp handle with a complete message
+    // in it if one was received
+    //
+    // diagnostic_receive_can_frame returns a diaghandle if one was received
+    //
+    // so in the user code you would throw the can frame at each of your active
+    // diag handles and see if any return a completed message.
+    //
+    // is there any advantage to a callback approach?  callbacks are useful when
+    // you have something that will block, bt we don't have anything that will
+    // block. it's async but we return immediately from each partial parsing
+    // attempt.
+    //
+    // argh, but will we need the callbacks when we add timers for isotp multi
+    // frame?
+    //
+    // what are the timers for exactly?
+    //
+    // when sending multi frame, send 1 frame, wait for a response
+    // if it says send all, send all right away
+    // if it says flow control, set the time for the next send
+    // instead of creating a timer with an async callback, add a process_handle
+    // function that's called repeatedly in the main loop - if it's time to
+    // send, we do it. so there's a process_handle_send and receive_can_frame
+    // that are just called continuously from the main loop. it's a waste of a
+    // few cpu cycles but it may be more  natural than callbacks.
+    //
+    // what woudl a timer callback look like...it would need to pass the handle
+    // and that's all. seems like a context void* would be able to capture all
+    // of the information but arg, memory allocation. look at how it's done in
+    // the other library again
+    //
     return handle;
 }
 
@@ -79,20 +121,27 @@ DiagnosticRequestHandle diagnostic_request_pid(DiagnosticShims* shims,
     return diagnostic_request(shims, &request, callback);
 }
 
-void diagnostic_receive_isotp_message(const IsoTpMessage* message) {
-    // TODO
-}
-
-void diagnostic_receive_can_frame(DiagnosticRequestHandle* handle,
+DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
+        DiagnosticRequestHandle* handle,
         const uint16_t arbitration_id, const uint8_t data[],
         const uint8_t size) {
-    isotp_receive_can_frame(handle->isotp_handler, arbitration_id, data, size);
+    if(!handle->isotp_send_handle.completed) {
+    } else if(!handle->isotp_receive_handle.completed) {
+    } else {
+        shims->log("Handle is already completed");
+    }
+    // TODO determine which isotp handler to pass it to based on our state
+    IsoTpMessage message = isotp_receive_can_frame(&handle->isotp_shims,
+            &handle->isotp_send_handle, arbitration_id, data, size);
+
+    DiagnosticResponse response = {
+        success: false,
+        completed: false
+    };
+
+    if(message.completed) {
+    }
 }
-
-// TODO argh, we're now saying that user code will rx CAN messages, but who does
-// it hand them to? isotp handlers are encapsulated in diagnostic handles
-
-
 
 // TODO everything below here is for future work...not critical for now.
 
