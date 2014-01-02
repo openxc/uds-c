@@ -8,7 +8,12 @@ extern void setup();
 extern bool last_response_was_received;
 extern DiagnosticResponse last_response_received;
 extern DiagnosticShims SHIMS;
-extern DiagnosticResponseReceived response_received_handler;
+
+void response_received_handler(const DiagnosticResponse* response) {
+    last_response_was_received = true;
+    // TODO not sure if we can copy the struct like this
+    last_response_received = *response;
+}
 
 START_TEST (test_receive_wrong_arb_id)
 {
@@ -45,11 +50,9 @@ START_TEST (test_send_diag_request)
     fail_unless(response.success);
     fail_unless(response.completed);
     fail_unless(handle.completed);
-    fail_unless(last_response_was_received);
     ck_assert(last_response_received.success);
     ck_assert_int_eq(last_response_received.arbitration_id,
             request.arbitration_id + 0x8);
-    // TODO should we set it back to the original mode, or leave as mode + 0x40?
     ck_assert_int_eq(last_response_received.mode, request.mode);
     ck_assert_int_eq(last_response_received.pid, 0);
     ck_assert_int_eq(last_response_received.payload_length, 1);
@@ -71,7 +74,6 @@ START_TEST (test_request_pid_standard)
     ck_assert(last_response_received.success);
     ck_assert_int_eq(last_response_received.arbitration_id,
             0x7df + 0x8);
-    // TODO should we set it back to the original mode, or leave as mode + 0x40?
     ck_assert_int_eq(last_response_received.mode, 0x1);
     ck_assert_int_eq(last_response_received.pid, 0x2);
     ck_assert_int_eq(last_response_received.payload_length, 1);

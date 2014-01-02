@@ -35,12 +35,6 @@ void mock_send_can(const uint16_t arbitration_id, const uint8_t* data,
 void mock_set_timer(uint16_t time_ms, void (*callback)) {
 }
 
-void response_received_handler(const DiagnosticResponse* response) {
-    last_response_was_received = true;
-    // TODO not sure if we can copy the struct like this
-    last_response_received = *response;
-}
-
 void setup() {
     SHIMS = diagnostic_init_shims(debug, mock_send_can, mock_set_timer);
     memset(last_can_payload_sent, 0, sizeof(last_can_payload_sent));

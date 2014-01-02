@@ -9,10 +9,20 @@
 extern "C" {
 #endif
 
+// TODO This isn't true for multi frame messages - we may need to dynamically
+// allocate this in the future
 #define MAX_OBD2_PAYLOAD_LENGTH 7
 #define VIN_LENGTH 17
 
+typedef enum {
+    DIAGNOSTIC_REQUEST_TYPE_PID,
+    DIAGNOSTIC_REQUEST_TYPE_DTC,
+    DIAGNOSTIC_REQUEST_TYPE_MIL_STATUS,
+    DIAGNOSTIC_REQUEST_TYPE_VIN
+} DiagnosticRequestType;
+
 typedef struct {
+    DiagnosticRequestType type;
     uint16_t arbitration_id;
     uint8_t mode;
     uint16_t pid;
@@ -69,13 +79,8 @@ typedef struct {
     uint8_t mode;
     bool success;
     bool completed;
-    // if mode is one with a PID, read the correct numbers of PID bytes (1 or 2)
-    // into this field, then store the remainder of the payload in the payload
-    // field
     uint16_t pid;
     DiagnosticNegativeResponseCode negative_response_code;
-    // if response mode is a negative response, read first byte of payload into
-    // NRC and store remainder of payload in payload field
     uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];
     uint8_t payload_length;
 } DiagnosticResponse;
@@ -109,25 +114,14 @@ typedef struct {
     float max_value;
 } DiagnosticParameter;
 
-typedef enum {
-    DIAGNOSTIC_REQUEST_TYPE_PID,
-    DIAGNOSTIC_REQUEST_TYPE_DTC,
-    DIAGNOSTIC_REQUEST_TYPE_MIL_STATUS,
-    DIAGNOSTIC_REQUEST_TYPE_VIN
-} DiagnosticRequestType;
-
 typedef struct {
+    DiagnosticRequest request;
     bool success;
     bool completed;
+
     IsoTpShims isotp_shims;
     IsoTpHandle isotp_send_handle;
     IsoTpHandle isotp_receive_handle;
-    // TODO the Handle may need to keep the original request, otherwise we can't
-    // compare an incoming CAN message to see if it matches the service / PID!
-    // TODO i'm not sure this type/callback in here is too useful - see the
-    // comments in obd2.c:diagnostic_request
-
-    DiagnosticRequestType type;
     DiagnosticResponseReceived callback;
     DiagnosticMilStatusReceived mil_status_callback;
     DiagnosticVinReceived vin_callback;

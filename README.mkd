@@ -1,6 +1,8 @@
 OBD-II Support Library in C
 =============================
 
+TODO diagram out a request, response and error response
+
 TODO isotp needs to accept responses on an ID other that the request's arb id -
 or maybe we have 2 isotp instances, for rx and tx.
 

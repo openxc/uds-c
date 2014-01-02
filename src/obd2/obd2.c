@@ -1,8 +1,12 @@
 #include <obd2/obd2.h>
 
+#define MODE_RESPONSE_OFFSET 0x40
+#define NEGATIVE_RESPONSE_MODE 0x7f
 #define MAX_DIAGNOSTIC_PAYLOAD_SIZE 6
 #define MODE_BYTE_INDEX 0
 #define PID_BYTE_INDEX 1
+#define NEGATIVE_RESPONSE_MODE_INDEX 1
+#define NEGATIVE_RESPONSE_NRC_INDEX 2
 
 DiagnosticShims diagnostic_init_shims(LogShim log,
         SendCanMessageShim send_can_message,
@@ -18,11 +22,13 @@ DiagnosticShims diagnostic_init_shims(LogShim log,
 DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticResponseReceived callback) {
     DiagnosticRequestHandle handle = {
-        type: DIAGNOSTIC_REQUEST_TYPE_PID,
+        // TODO can we copy the request?
+        request: *request,
         callback: callback,
         success: false,
         completed: false
     };
+
     uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE];
     payload[MODE_BYTE_INDEX] = request->mode;
     if(request->pid_length > 0) {
@@ -125,22 +131,80 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         DiagnosticRequestHandle* handle,
         const uint16_t arbitration_id, const uint8_t data[],
         const uint8_t size) {
-    if(!handle->isotp_send_handle.completed) {
-    } else if(!handle->isotp_receive_handle.completed) {
-    } else {
-        shims->log("Handle is already completed");
-    }
-    // TODO determine which isotp handler to pass it to based on our state
-    IsoTpMessage message = isotp_receive_can_frame(&handle->isotp_shims,
-            &handle->isotp_send_handle, arbitration_id, data, size);
 
     DiagnosticResponse response = {
+        arbitration_id: arbitration_id,
         success: false,
         completed: false
     };
 
-    if(message.completed) {
+    if(!handle->isotp_send_handle.completed) {
+        // TODO when completing a send, this returns...a Message? we have to
+        // check when the isotp_send_handle is completed, and if it is, start
+        isotp_receive_can_frame(&handle->isotp_shims,
+                &handle->isotp_send_handle, arbitration_id, data, size);
+    } else if(!handle->isotp_receive_handle.completed) {
+        IsoTpMessage message = isotp_receive_can_frame(&handle->isotp_shims,
+                &handle->isotp_receive_handle, arbitration_id, data, size);
+
+        if(message.completed) {
+            if(message.size > 0) {
+                response.mode = message.payload[0];
+                if(response.mode == NEGATIVE_RESPONSE_MODE) {
+                    if(message.size > NEGATIVE_RESPONSE_MODE_INDEX) {
+                        // TODO we're setting the mode to the originating
+                        // request for the error, so the user can confirm - i
+                        // think this is OK since we're storing the failure
+                        // status elsewhere, but think about it.
+                        response.mode = message.payload[NEGATIVE_RESPONSE_MODE_INDEX];
+                    }
+
+                    if(message.size > NEGATIVE_RESPONSE_NRC_INDEX) {
+                        response.negative_response_code = message.payload[NEGATIVE_RESPONSE_NRC_INDEX];
+                    }
+                    response.success = false;
+                } else {
+                    if(response.mode == handle->request.mode + MODE_RESPONSE_OFFSET) {
+                        // hide the "response" version of the mode from the user
+                        // if it matched
+                        response.mode = handle->request.mode;
+                        if(handle->request.pid_length > 0 && message.size > 1) {
+                            copy_bytes_right_aligned(handle->request.pid, sizeof(handle->request.pid),
+                                    PID_BYTE_INDEX, handle->request.pid_length, response.pid,
+                                    sizeof(response.pid));
+                        }
+
+                        uint8_t payload_index =  1 + handle->request.pid_length;
+                        response.payload_length = message.size - payload_index;
+                        if(response.payload_length > 0) {
+                            memcpy(response.payload, &message.payload[payload_index],
+                                    response.payload_length);
+                        }
+                        response.success = true;
+                    } else {
+                        shims->log("Response was for a mode %d request, not our mode %d request",
+                                response.mode - MODE_RESPONSE_OFFSET,
+                                handle->request.mode);
+                    }
+                }
+            }
+
+            response.completed = true;
+            // TODO what does it mean for the handle to be successful, vs. the
+            // request to be successful? if we get a NRC, is that a successful
+            // request?
+            handle->success = true;
+            handle->completed = true;
+
+            if(handle->callback != NULL) {
+                handle->callback(&response);
+            }
+        }
+
+    } else {
+        shims->log("Handle is already completed");
     }
+    return response;
 }
 
 // TODO everything below here is for future work...not critical for now.
