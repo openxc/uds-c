@@ -133,9 +133,9 @@ typedef enum {
 } DiagnosticPidRequestType;
 
 typedef struct {
-    SetTimerShim set_timer;
-    SendCanMessageShim send_can_message;
     LogShim log;
+    SendCanMessageShim send_can_message;
+    SetTimerShim set_timer;
 } DiagnosticShims;
 
 DiagnosticShims diagnostic_init_shims(LogShim log,
@@ -147,8 +147,8 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
 
 // decide mode 0x1 / 0x22 based on pid type
 DiagnosticRequestHandle diagnostic_request_pid(DiagnosticShims* shims,
-        DiagnosticPidRequestType pid_request_type, uint16_t pid,
-        DiagnosticResponseReceived callback);
+        DiagnosticPidRequestType pid_request_type, uint16_t arbitration_id,
+        uint16_t pid, DiagnosticResponseReceived callback);
 
 DiagnosticRequestHandle diagnostic_request_malfunction_indicator_status(
         DiagnosticShims* shims,

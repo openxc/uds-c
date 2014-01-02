@@ -62,18 +62,19 @@ END_TEST
 
 START_TEST (test_request_pid_standard)
 {
+    // TODO need a constant for the 7df broadcast functional request
+    uint16_t arb_id = 0x7df;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
-            DIAGNOSTIC_STANDARD_PID, 0x2, response_received_handler);
+            DIAGNOSTIC_STANDARD_PID, arb_id, 0x2, response_received_handler);
 
     fail_if(last_response_was_received);
     const uint8_t can_data[] = {0x3, 0x1 + 0x40, 0x2, 0x45};
-    // TODO need a constant for the 7df broadcast functional request
-    diagnostic_receive_can_frame(&SHIMS, &handle, 0x7df + 0x8,
+    diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8,
             can_data, sizeof(can_data));
     fail_unless(last_response_was_received);
     ck_assert(last_response_received.success);
     ck_assert_int_eq(last_response_received.arbitration_id,
-            0x7df + 0x8);
+            arb_id + 0x8);
     ck_assert_int_eq(last_response_received.mode, 0x1);
     ck_assert_int_eq(last_response_received.pid, 0x2);
     ck_assert_int_eq(last_response_received.payload_length, 1);
@@ -83,23 +84,37 @@ END_TEST
 
 START_TEST (test_request_pid_enhanced)
 {
+    uint16_t arb_id = 0x7df;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
-            DIAGNOSTIC_ENHANCED_PID, 0x2, response_received_handler);
+            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
 
     fail_if(last_response_was_received);
-    const uint8_t can_data[] = {0x4, 0x1 + 0x40, 0x0, 0x2, 0x45};
-    // TODO need a constant for the 7df broadcast functional request
-    diagnostic_receive_can_frame(&SHIMS, &handle, 0x7df + 0x8, can_data,
+    const uint8_t can_data[] = {0x4, 0x22 + 0x40, 0x0, 0x2, 0x45};
+    diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
             sizeof(can_data));
     fail_unless(last_response_was_received);
     ck_assert(last_response_received.success);
     ck_assert_int_eq(last_response_received.arbitration_id,
-            0x7df + 0x8);
-    // TODO should we set it back to the original mode, or leave as mode + 0x40?
+            arb_id + 0x8);
     ck_assert_int_eq(last_response_received.mode, 0x22);
     ck_assert_int_eq(last_response_received.pid, 0x2);
     ck_assert_int_eq(last_response_received.payload_length, 1);
     ck_assert_int_eq(last_response_received.payload[0], can_data[4]);
+}
+END_TEST
+
+START_TEST (test_wrong_mode_response)
+{
+    uint16_t arb_id = 0x7df;
+    DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
+            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
+
+    fail_if(last_response_was_received);
+    const uint8_t can_data[] = {0x4, 0x1 + 0x40, 0x0, 0x2, 0x45};
+    diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
+            sizeof(can_data));
+    fail_unless(last_response_was_received);
+    fail_if(last_response_received.success);
 }
 END_TEST
 
@@ -111,6 +126,7 @@ Suite* testSuite(void) {
     tcase_add_test(tc_core, test_receive_wrong_arb_id);
     tcase_add_test(tc_core, test_request_pid_standard);
     tcase_add_test(tc_core, test_request_pid_enhanced);
+    tcase_add_test(tc_core, test_wrong_mode_response);
 
     // TODO these are future work:
     // TODO test request MIL

@@ -1,4 +1,5 @@
 #include <obd2/obd2.h>
+#include <arpa/inet.h>
 
 #define MODE_RESPONSE_OFFSET 0x40
 #define NEGATIVE_RESPONSE_MODE 0x7f
@@ -12,9 +13,9 @@ DiagnosticShims diagnostic_init_shims(LogShim log,
         SendCanMessageShim send_can_message,
         SetTimerShim set_timer) {
     DiagnosticShims shims = {
+        log: log,
         send_can_message: send_can_message,
-        set_timer: set_timer,
-        log: log
+        set_timer: set_timer
     };
     return shims;
 }
@@ -32,11 +33,11 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
     uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE];
     payload[MODE_BYTE_INDEX] = request->mode;
     if(request->pid_length > 0) {
-        copy_bytes_right_aligned(request->pid, sizeof(request->pid),
+        copy_bytes_right_aligned(&request->pid, sizeof(request->pid),
                 PID_BYTE_INDEX, request->pid_length, payload, sizeof(payload));
     }
     if(request->payload_length > 0) {
-        memcpy(payload[PID_BYTE_INDEX + request->pid_length],
+        memcpy(&payload[PID_BYTE_INDEX + request->pid_length],
                 request->payload, request->payload_length);
     }
 
@@ -46,15 +47,11 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
     handle.isotp_send_handle = isotp_send(&handle.isotp_shims,
             request->arbitration_id, payload,
             1 + request->payload_length + request->pid_length,
-            // TODO is this ok to pass null here?
             NULL);
 
     handle.isotp_receive_handle = isotp_receive(&handle.isotp_shims,
             // TODO need to either always add 0x8 or let the user specify
             request->arbitration_id + 0x8,
-            // TODO this callback is mostly useful for debugging stuff as it
-            // doesn't have the internal state we need to complete the
-            // diagnositc request - can we pass NULL or will that 'splode?
             NULL);
 
     // when a can frame is received and passes to the diagnostic handle
@@ -117,20 +114,21 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
 }
 
 DiagnosticRequestHandle diagnostic_request_pid(DiagnosticShims* shims,
-        DiagnosticPidRequestType pid_request_type, uint16_t pid,
-        DiagnosticResponseReceived callback) {
+        DiagnosticPidRequestType pid_request_type, uint16_t arbitration_id,
+        uint16_t pid, DiagnosticResponseReceived callback) {
     DiagnosticRequest request = {
+        arbitration_id: arbitration_id,
         mode: pid_request_type == DIAGNOSTIC_STANDARD_PID ? 0x1 : 0x22,
-        pid: pid
+        pid: pid,
+        pid_length: pid_request_type == DIAGNOSTIC_STANDARD_PID ? 1 : 2
     };
 
     return diagnostic_request(shims, &request, callback);
 }
 
 DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
-        DiagnosticRequestHandle* handle,
-        const uint16_t arbitration_id, const uint8_t data[],
-        const uint8_t size) {
+        DiagnosticRequestHandle* handle, const uint16_t arbitration_id,
+        const uint8_t data[], const uint8_t size) {
 
     DiagnosticResponse response = {
         arbitration_id: arbitration_id,
@@ -169,12 +167,15 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                         // if it matched
                         response.mode = handle->request.mode;
                         if(handle->request.pid_length > 0 && message.size > 1) {
-                            copy_bytes_right_aligned(handle->request.pid, sizeof(handle->request.pid),
-                                    PID_BYTE_INDEX, handle->request.pid_length, response.pid,
-                                    sizeof(response.pid));
+                            if(handle->request.pid_length == 2) {
+                                response.pid = *(uint16_t*)&message.payload[PID_BYTE_INDEX];
+                                response.pid = ntohs(response.pid);
+                            } else {
+                                response.pid = message.payload[PID_BYTE_INDEX];
+                            }
                         }
 
-                        uint8_t payload_index =  1 + handle->request.pid_length;
+                        uint8_t payload_index = 1 + handle->request.pid_length;
                         response.payload_length = message.size - payload_index;
                         if(response.payload_length > 0) {
                             memcpy(response.payload, &message.payload[payload_index],
@@ -182,7 +183,7 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                         }
                         response.success = true;
                     } else {
-                        shims->log("Response was for a mode %d request, not our mode %d request",
+                        shims->log("Response was for a mode 0x%x request, not our mode 0x%x request",
                                 response.mode - MODE_RESPONSE_OFFSET,
                                 handle->request.mode);
                     }
