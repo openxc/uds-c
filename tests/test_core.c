@@ -60,7 +60,7 @@ START_TEST (test_send_diag_request)
 {
     DiagnosticRequest request = {
         arbitration_id: 0x7df,
-        mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST
+        mode: OBD2_MODE_EMISSIONS_DTC_REQUEST
     };
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
             response_received_handler);

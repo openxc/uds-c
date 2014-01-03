@@ -1,42 +1,17 @@
 OBD-II Support Library in C
 =============================
 
+This is a platform agnostic C library that implements the standard On Board
+Diagnostics system for vehicles. It currently supports OBD-II running over CAN
+(ISO 15765-4), which uses the ISO-TP (ISO 15765-2) protocol underneath.
+
+This library doesn't assume anything about the source of your diagnostic message
+requests or underlying interface to the CAN bus. It uses dependency injection to
+give you complete control.
+
+## OBD-II Basics
+
 TODO diagram out a request, response and error response
-
-TODO isotp needs to accept responses on an ID other that the request's arb id -
-or maybe we have 2 isotp instances, for rx and tx.
-
-* Response's arb id is assigned ID plus 0x8
-* Functional daignostic request (Broadcast), 0x7df arb id
-* Standard ECU requests to 0x7e0 - 0x7e7
-
-* Some requests don't need PIDs - e.g. mode 3
-    * some responses don't have PIDs, just payload - e.g. mode 3
-
-* Service ID + 0x40 == positive response
-* Response includes PID echo - use this to match up request/response
-* Response ID, ISO-TP PCI, ISO-TP length, service response ID, PID echo, data
-
-I send the request and give a callback
-when the response arrives for the matchin service and PID - on any arb id, since
-this may be a broadcast - call my callback.
-
-
-TODO do you want to provide the callback to the Handler, or to each
-individual send?o
-ok, what are the use cases here.
-
-you're going to request a few PIDs over and over again at some frequency
-you're going to request DTCs once and read the response
-you're going to clear DTCs once
-
-i'd rather use the same diagnostic handler to send all of the differet messages
-rather than create one for each use. that way ai can
-
-but that does complicate the memory management because it'll need to create
-some internal data structures.
-
-at the simplest, what does this handler have to do?
 
 * store the request arb id, mode, pid, and payload locally
 * send a can message
@@ -45,37 +20,160 @@ at the simplest, what does this handler have to do?
   response IDs, or our arb ID + 0x8
 * if it matches, parse the diagnostic response and call the callback
 
-that seems pretty simple and not worth greatly increasing the internal state to
-handle multiple requests
+## Usage
 
-what we need is another layer on top of that to handle the repeated requests.
+First, create some shim functions to let this library use your lower level
+system:
 
-## API
-
-    void my_callback(const DiagnosticResponse* response) {
+    // required, this must send a single CAN message with the given arbitration
+    // ID (i.e. the CAN message ID) and data. The size will never be more than 8
+    // bytes.
+    void send_can(const uint16_t arbitration_id, const uint8_t* data,
+            const uint8_t size) {
+        ...
     }
 
-    DiagnosticRequestHandle handle = diagnostic_init(my_callback);
+    // optional, provide to receive debugging log messages
+    void debug(const char* format, ...) {
+        ...
+    }
+
+
+    // not used in the current version
+    void set_timer(uint16_t time_ms, void (*callback)) {
+        ...
+    }
+
+With your shims in place, create a `DiagnosticShims` object to pass them around:
+
+    DiagnosticShims shims = diagnostic_init_shims(debug, send_can, set_timer);
+
+With your shims in hand, send a simple PID request to the stadnard broadcast
+address, `0x7df`:
+
+    // Optional: This is your callback that will be called the response to your
+    // diagnostic request is received.
+    void response_received_handler(const DiagnosticResponse* response) {
+        // You received a response! Do something with it.
+    }
+
+    DiagnosticRequestHandle handle = diagnostic_request_pid(&shims,
+            DIAGNOSTIC_STANDARD_PID, // this is a standard PID request, not an extended or enhanced one
+            0x7df, // the request is going out to the broadcast arbitration ID
+            0x2, // we want PID 0x2
+            response_received_handler); // our callback (optional, use NULL if you don't have one)
+
+    if(handle.completed) {
+        if(!handle.success) {
+            // something happened and it already failed - possibly we aren't
+            // able to send CAN messages
+            return;
+        } else {
+            // this should never occur right away - you need to receive a fresh
+            // CAN message first
+        }
+    } else {
+        while(true) {
+            // Continue to read from CAN, passing off each message to the handle.
+            // This will return a 'completed' DiagnosticResponse when the when
+            // the request is completely sent and the response is received
+            // (which may take more than 1 CAN frames)
+            DiagnosticResponse response = diagnostic_receive_can_frame(&shims,
+                &handle, can_message_id, can_data, sizeof(can_data));
+
+            if(response.completed && handle.completed) {
+                if(handle.success) {
+                  if(response.success) {
+                      // The request was sent successfully, the response was
+                      // received successfully, and it was a positive response - we
+                      // got back some data!
+                  } else {
+                      // The request was sent successfully, the response was
+                      // received successfully, BUT it was a negative response
+                      // from the other node.
+                      printf("This is the error code: %d", response.negative_response_code);
+                  }
+                } else {
+                    // Some other fatal error ocurred - we weren't able to send
+                    // the request or receive the response. The CAN connection
+                    // may be down.
+                }
+            }
+        }
+    }
+
+## Requests for other modes
+
+If you want to do more besides PID requests on mode 0x1 and 0x22, there's a
+lower level API you can use. Here's how to make a mode 3 request to get DTCs.
+
     DiagnosticRequest request = {
-        arbitratin_id: 0x7df,
-        mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST,
-        pid: 3
+        arbitration_id: 0x7df,
+        mode: OBD2_MODE_EMISSIONS_DTC_REQUEST
     };
+    DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request, NULL);
 
-    diagnostic_send(&handle, &request);
-    while(true) {
-        diagnostic_handle_can_frame(&handle, 42, data, 8);
+    if(handle.completed) {
+        if(!handle.success) {
+            // something happened and it already failed - possibly we aren't
+            // able to send CAN messages
+            return;
+        } else {
+            // this should never occur right away - you need to receive a fresh
+            // CAN message first
+        }
+    } else {
+        while(true) {
+            // Continue to read from CAN, passing off each message to the handle.
+            // This will return a 'completed' DiagnosticResponse when the when
+            // the request is completely sent and the response is received
+            // (which may take more than 1 CAN frames)
+            DiagnosticResponse response = diagnostic_receive_can_frame(&shims,
+                &handle, can_message_id, can_data, sizeof(can_data));
+
+            if(response.completed && handle.completed) {
+                if(handle.success) {
+                  if(response.success) {
+                      // The request was sent successfully, the response was
+                      // received successfully, and it was a positive response - we
+                      // got back some data!
+                      printf("The DTCs are: ");
+                      for(int i = 0; i < response.payload_length; i++) {
+                        printf("0x%x ", response.payload[i]);
+                      }
+                  } else {
+                      // The request was sent successfully, the response was
+                      // received successfully, BUT it was a negative response
+                      // from the other node.
+                      printf("This is the error code: %d", response.negative_response_code);
+                  }
+                } else {
+                    // Some other fatal error ocurred - we weren't able to send
+                    // the request or receive the response. The CAN connection
+                    // may be down.
+                }
+            }
+        }
     }
-
-    diagnostic_request_pid(&handle, DIAGNOSTIC_STANDARD_PID, 42
-
-    diagnostic_destroy(&handle);
 
 ## Testing
 
 The library includes a test suite that uses the `check` C unit test library.
 
     $ make test
+
+You can also see the test coverage if you have `lcov` installed and the
+`BROWSER` environment variable set to your choice of web browsers:
+
+    $ BROWSER=google-chrome-stable make coverage
+
+## Future Notes
+
+you're going to request a few PIDs over and over again at some frequency
+you're going to request DTCs once and read the response
+you're going to clear DTCs once
+
+we need another layer on top of that to handle the repeated requests.
 
 ## Authors
 

@@ -73,8 +73,8 @@ typedef enum {
 typedef struct {
     uint16_t arbitration_id;
     uint8_t mode;
-    bool success;
     bool completed;
+    bool success;
     uint16_t pid;
     DiagnosticNegativeResponseCode negative_response_code;
     uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];
