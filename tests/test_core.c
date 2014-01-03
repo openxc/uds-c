@@ -8,6 +8,9 @@ extern void setup();
 extern bool last_response_was_received;
 extern DiagnosticResponse last_response_received;
 extern DiagnosticShims SHIMS;
+extern uint16_t last_can_frame_sent_arb_id;
+extern uint8_t last_can_payload_sent[8];
+extern uint8_t last_can_payload_size;
 
 void response_received_handler(const DiagnosticResponse* response) {
     last_response_was_received = true;
@@ -32,6 +35,28 @@ START_TEST (test_receive_wrong_arb_id)
 }
 END_TEST
 
+START_TEST (test_send_diag_request_with_payload)
+{
+    DiagnosticRequest request = {
+        arbitration_id: 0x7df,
+        mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST,
+        payload: {0x12, 0x34},
+        payload_length: 2
+    };
+    DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
+            response_received_handler);
+
+    fail_if(handle.completed);
+    // TODO it'd be better to check the ISO-TP message instead of the CAN frame,
+    // but we don't have a good way to do that
+    ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
+    ck_assert_int_eq(last_can_payload_sent[1], request.mode);
+    ck_assert_int_eq(last_can_payload_size, 4);
+    ck_assert_int_eq(last_can_payload_sent[2], request.payload[0]);
+    ck_assert_int_eq(last_can_payload_sent[3], request.payload[1]);
+}
+END_TEST
+
 START_TEST (test_send_diag_request)
 {
     DiagnosticRequest request = {
@@ -42,6 +67,9 @@ START_TEST (test_send_diag_request)
             response_received_handler);
 
     fail_if(handle.completed);
+    ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
+    ck_assert_int_eq(last_can_payload_sent[1], request.mode);
+    ck_assert_int_eq(last_can_payload_size, 2);
 
     fail_if(last_response_was_received);
     const uint8_t can_data[] = {0x2, request.mode + 0x40, 0x23};
@@ -123,6 +151,7 @@ Suite* testSuite(void) {
     TCase *tc_core = tcase_create("core");
     tcase_add_checked_fixture(tc_core, setup, NULL);
     tcase_add_test(tc_core, test_send_diag_request);
+    tcase_add_test(tc_core, test_send_diag_request_with_payload);
     tcase_add_test(tc_core, test_receive_wrong_arb_id);
     tcase_add_test(tc_core, test_request_pid_standard);
     tcase_add_test(tc_core, test_request_pid_enhanced);
