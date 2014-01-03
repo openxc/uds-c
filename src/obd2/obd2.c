@@ -1,6 +1,7 @@
 #include <obd2/obd2.h>
 #include <arpa/inet.h>
 
+#define ARBITRATION_ID_OFFSET 0x8
 #define MODE_RESPONSE_OFFSET 0x40
 #define NEGATIVE_RESPONSE_MODE 0x7f
 #define MAX_DIAGNOSTIC_PAYLOAD_SIZE 6
@@ -23,7 +24,6 @@ DiagnosticShims diagnostic_init_shims(LogShim log,
 DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticResponseReceived callback) {
     DiagnosticRequestHandle handle = {
-        // TODO can we copy the request?
         request: *request,
         callback: callback,
         success: false,
@@ -50,51 +50,11 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
             NULL);
 
     handle.isotp_receive_handle = isotp_receive(&handle.isotp_shims,
-            // TODO need to either always add 0x8 or let the user specify
-            request->arbitration_id + 0x8,
+            request->arbitration_id + ARBITRATION_ID_OFFSET,
             NULL);
 
-    // when a can frame is received and passes to the diagnostic handle
-    // if we haven't successfuly sent the entire message yet, give it to the
-    // isottp send handle
-    // if we have sent it, give it to the isotp rx handle
-    // if we've received properly, mark this request as completed
-    // how do you get the result? we have it set up for callbacks but that's
-    // getting to be kind of awkward
-    //
-    // say it were to call a callback...what state would it need to pass?
-    //
-    // the iso-tp message received callback needs to pass the handle and the
-    // received message
-    //
-    // so in the obd2 library, we get a callback with an isotp message. how do
-    // we know what diag request i went with, and which diag callback to use? we
-    // could store context with the isotp handle. the problem is that context is
-    // self referential and on the stack, so we really can't get a pointer to
-    // it.
-    //
-    // the diagnostic response received callback needs to pass the diagnostic
-    // handle and the diag response
-    //
-    // let's say we simplify things and drop the callbacks.
-    //
-    // isotp_receive_can_frame returns an isotp handle with a complete message
-    // in it if one was received
-    //
-    // diagnostic_receive_can_frame returns a diaghandle if one was received
-    //
-    // so in the user code you would throw the can frame at each of your active
-    // diag handles and see if any return a completed message.
-    //
-    // is there any advantage to a callback approach?  callbacks are useful when
-    // you have something that will block, bt we don't have anything that will
-    // block. it's async but we return immediately from each partial parsing
-    // attempt.
-    //
-    // argh, but will we need the callbacks when we add timers for isotp multi
-    // frame?
-    //
-    // what are the timers for exactly?
+    // TODO notes on multi frame:
+    // TODO what are the timers for exactly?
     //
     // when sending multi frame, send 1 frame, wait for a response
     // if it says send all, send all right away
@@ -126,6 +86,55 @@ DiagnosticRequestHandle diagnostic_request_pid(DiagnosticShims* shims,
     return diagnostic_request(shims, &request, callback);
 }
 
+static bool handle_negative_response(IsoTpMessage* message,
+        DiagnosticResponse* response, DiagnosticShims* shims) {
+    bool response_was_negative = false;
+    if(response->mode == NEGATIVE_RESPONSE_MODE) {
+        response_was_negative = true;
+        if(message->size > NEGATIVE_RESPONSE_MODE_INDEX) {
+            response->mode = message->payload[NEGATIVE_RESPONSE_MODE_INDEX];
+        }
+
+        if(message->size > NEGATIVE_RESPONSE_NRC_INDEX) {
+            response->negative_response_code = message->payload[NEGATIVE_RESPONSE_NRC_INDEX];
+        }
+
+        response->success = false;
+        response->completed = true;
+    }
+    return response_was_negative;
+}
+
+static bool handle_positive_response(DiagnosticRequestHandle* handle,
+        IsoTpMessage* message, DiagnosticResponse* response,
+        DiagnosticShims* shims) {
+    bool response_was_positive = false;
+    if(response->mode == handle->request.mode + MODE_RESPONSE_OFFSET) {
+        response_was_positive = true;
+        // hide the "response" version of the mode from the user
+        // if it matched
+        response->mode = handle->request.mode;
+        if(handle->request.pid_length > 0 && message->size > 1) {
+            if(handle->request.pid_length == 2) {
+                response->pid = *(uint16_t*)&message->payload[PID_BYTE_INDEX];
+                response->pid = ntohs(response->pid);
+            } else {
+                response->pid = message->payload[PID_BYTE_INDEX];
+            }
+        }
+
+        uint8_t payload_index = 1 + handle->request.pid_length;
+        response->payload_length = message->size - payload_index;
+        if(response->payload_length > 0) {
+            memcpy(response->payload, &message->payload[payload_index],
+                    response->payload_length);
+        }
+        response->success = true;
+        response->completed = true;
+    }
+    return response_was_positive;
+}
+
 DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         DiagnosticRequestHandle* handle, const uint16_t arbitration_id,
         const uint8_t data[], const uint8_t size) {
@@ -143,95 +152,40 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
                 &handle->isotp_receive_handle, arbitration_id, data, size);
 
-        // TODO this could be cleaned and DRY'd up a bit
         if(message.completed) {
             if(message.size > 0) {
                 response.mode = message.payload[0];
-                if(response.mode == NEGATIVE_RESPONSE_MODE) {
-                    if(message.size > NEGATIVE_RESPONSE_MODE_INDEX) {
-                        // TODO we're setting the mode to the originating
-                        // request for the error, so the user can confirm - i
-                        // think this is OK since we're storing the failure
-                        // status elsewhere, but think about it.
-                        response.mode = message.payload[NEGATIVE_RESPONSE_MODE_INDEX];
-                    }
+                if(handle_negative_response(&message, &response, shims)) {
+                    shims->log("Received a negative response to mode %d on arb ID 0x%x",
+                            response.mode, response.arbitration_id);
 
-                    if(message.size > NEGATIVE_RESPONSE_NRC_INDEX) {
-                        response.negative_response_code = message.payload[NEGATIVE_RESPONSE_NRC_INDEX];
-                    }
-
-                    response.success = false;
+                    // TODO clarify what it means for a handle to be successful (we made
+                    // a good request+response) vs a request itself being
+                    // successfully
+                    // (the other node didn't return a negative response).
+                    handle->success = true;
+                    handle->completed = true;
+                } else if(handle_positive_response(handle, &message, &response,
+                            shims)) {
+                    shims->log("Received a positive mode %d response on arb ID 0x%x",
+                            response.mode, response.arbitration_id);
+                    handle->success = true;
+                    handle->completed = true;
                 } else {
-                    if(response.mode == handle->request.mode + MODE_RESPONSE_OFFSET) {
-                        // hide the "response" version of the mode from the user
-                        // if it matched
-                        response.mode = handle->request.mode;
-                        if(handle->request.pid_length > 0 && message.size > 1) {
-                            if(handle->request.pid_length == 2) {
-                                response.pid = *(uint16_t*)&message.payload[PID_BYTE_INDEX];
-                                response.pid = ntohs(response.pid);
-                            } else {
-                                response.pid = message.payload[PID_BYTE_INDEX];
-                            }
-                        }
-
-                        uint8_t payload_index = 1 + handle->request.pid_length;
-                        response.payload_length = message.size - payload_index;
-                        if(response.payload_length > 0) {
-                            memcpy(response.payload, &message.payload[payload_index],
-                                    response.payload_length);
-                        }
-                        response.success = true;
-                    } else {
-                        shims->log("Response was for a mode 0x%x request, not our mode 0x%x request",
-                                response.mode - MODE_RESPONSE_OFFSET,
-                                handle->request.mode);
-                    }
+                    shims->log("Response was for a mode 0x%x request, not our mode 0x%x request",
+                            response.mode - MODE_RESPONSE_OFFSET,
+                            handle->request.mode);
                 }
             }
 
-            response.completed = true;
-            // TODO clarify what it means for a handle to be successful (we made
-            // a good request+response) vs a request itself being successfuly
-            // (the other node didn't return a negative response).
-            handle->success = true;
-            handle->completed = true;
-
-            if(handle->callback != NULL) {
+            if(handle->completed && handle->callback != NULL) {
                 handle->callback(&response);
             }
         }
 
     } else {
-        shims->log("Handle is already completed");
+        shims->log("Mode %d request to arb ID 0x%x is already completed",
+                handle->request.mode, handle->request.arbitration_id);
     }
     return response;
-}
-
-// TODO everything below here is for future work...not critical for now.
-
-DiagnosticRequestHandle diagnostic_request_malfunction_indicator_status(
-        DiagnosticShims* shims,
-        DiagnosticMilStatusReceived callback) {
-    // TODO request malfunction indicator light (MIL) status - request mode 1
-    // pid 1, parse first bit
-}
-
-DiagnosticRequestHandle diagnostic_request_vin(DiagnosticShims* shims,
-        DiagnosticVinReceived callback) {
-}
-
-DiagnosticRequestHandle diagnostic_request_dtc(DiagnosticShims* shims,
-        DiagnosticTroubleCodeType dtc_type,
-        DiagnosticTroubleCodesReceived callback) {
-}
-
-bool diagnostic_clear_dtc(DiagnosticShims* shims) {
-}
-
-DiagnosticRequestHandle diagnostic_enumerate_pids(DiagnosticShims* shims,
-        DiagnosticRequest* request, DiagnosticPidEnumerationReceived callback) {
-    // before calling the callback, split up the received bytes into 1 or 2 byte
-    // chunks depending on the mode so the final pid list is actual 1 or 2 byte PIDs
-    // TODO request supported PIDs  - request PID 0 and parse 4 bytes in response
 }

@@ -14,7 +14,6 @@ extern uint8_t last_can_payload_size;
 
 void response_received_handler(const DiagnosticResponse* response) {
     last_response_was_received = true;
-    // TODO not sure if we can copy the struct like this
     last_response_received = *response;
 }
 
@@ -141,8 +140,8 @@ START_TEST (test_wrong_mode_response)
     const uint8_t can_data[] = {0x4, 0x1 + 0x40, 0x0, 0x2, 0x45};
     diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
             sizeof(can_data));
-    fail_unless(last_response_was_received);
-    fail_if(last_response_received.success);
+    fail_if(last_response_was_received);
+    fail_if(handle.completed);
 }
 END_TEST
 
