@@ -180,6 +180,31 @@ START_TEST (test_handle_completed)
 }
 END_TEST
 
+START_TEST (test_negative_response)
+{
+    DiagnosticRequest request = {
+        arbitration_id: 0x7df,
+        mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST
+    };
+    DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
+            response_received_handler);
+    const uint8_t can_data[] = {0x3, 0x7f, request.mode, NRC_SERVICE_NOT_SUPPORTED};
+    DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS, &handle,
+            request.arbitration_id + 0x8, can_data, sizeof(can_data));
+    fail_unless(response.completed);
+    fail_if(response.success);
+    fail_unless(handle.completed);
+
+    fail_if(last_response_received.success);
+    ck_assert_int_eq(last_response_received.arbitration_id,
+            request.arbitration_id + 0x8);
+    ck_assert_int_eq(last_response_received.mode, request.mode);
+    ck_assert_int_eq(last_response_received.pid, 0);
+    ck_assert_int_eq(last_response_received.negative_response_code, NRC_SERVICE_NOT_SUPPORTED);
+    ck_assert_int_eq(last_response_received.payload_length, 0);
+}
+END_TEST
+
 Suite* testSuite(void) {
     Suite* s = suite_create("obd2");
     TCase *tc_core = tcase_create("core");
@@ -191,6 +216,7 @@ Suite* testSuite(void) {
     tcase_add_test(tc_core, test_request_pid_enhanced);
     tcase_add_test(tc_core, test_wrong_mode_response);
     tcase_add_test(tc_core, test_handle_completed);
+    tcase_add_test(tc_core, test_negative_response);
 
     // TODO these are future work:
     // TODO test request MIL

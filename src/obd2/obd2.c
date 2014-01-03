@@ -143,6 +143,7 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
                 &handle->isotp_receive_handle, arbitration_id, data, size);
 
+        // TODO this could be cleaned and DRY'd up a bit
         if(message.completed) {
             if(message.size > 0) {
                 response.mode = message.payload[0];
@@ -158,6 +159,7 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                     if(message.size > NEGATIVE_RESPONSE_NRC_INDEX) {
                         response.negative_response_code = message.payload[NEGATIVE_RESPONSE_NRC_INDEX];
                     }
+
                     response.success = false;
                 } else {
                     if(response.mode == handle->request.mode + MODE_RESPONSE_OFFSET) {
@@ -189,9 +191,9 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
             }
 
             response.completed = true;
-            // TODO what does it mean for the handle to be successful, vs. the
-            // request to be successful? if we get a NRC, is that a successful
-            // request?
+            // TODO clarify what it means for a handle to be successful (we made
+            // a good request+response) vs a request itself being successfuly
+            // (the other node didn't return a negative response).
             handle->success = true;
             handle->completed = true;
 
