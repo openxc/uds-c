@@ -146,6 +146,40 @@ START_TEST (test_wrong_mode_response)
 }
 END_TEST
 
+START_TEST (test_handle_completed)
+{
+    DiagnosticRequest request = {
+        arbitration_id: 0x7df,
+        mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST
+    };
+    DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
+            response_received_handler);
+
+    fail_if(handle.completed);
+
+    const uint8_t can_data[] = {0x2, request.mode + 0x40, 0x23};
+    DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS, &handle,
+            request.arbitration_id + 0x8, can_data, sizeof(can_data));
+    fail_unless(response.success);
+    fail_unless(response.completed);
+    fail_unless(handle.completed);
+
+    response = diagnostic_receive_can_frame(&SHIMS, &handle,
+            request.arbitration_id + 0x8, can_data, sizeof(can_data));
+    fail_if(response.success);
+    fail_if(response.completed);
+    fail_unless(handle.completed);
+
+    ck_assert(last_response_received.success);
+    ck_assert_int_eq(last_response_received.arbitration_id,
+            request.arbitration_id + 0x8);
+    ck_assert_int_eq(last_response_received.mode, request.mode);
+    ck_assert_int_eq(last_response_received.pid, 0);
+    ck_assert_int_eq(last_response_received.payload_length, 1);
+    ck_assert_int_eq(last_response_received.payload[0], can_data[2]);
+}
+END_TEST
+
 Suite* testSuite(void) {
     Suite* s = suite_create("obd2");
     TCase *tc_core = tcase_create("core");
@@ -156,6 +190,7 @@ Suite* testSuite(void) {
     tcase_add_test(tc_core, test_request_pid_standard);
     tcase_add_test(tc_core, test_request_pid_enhanced);
     tcase_add_test(tc_core, test_wrong_mode_response);
+    tcase_add_test(tc_core, test_handle_completed);
 
     // TODO these are future work:
     // TODO test request MIL
