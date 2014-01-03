@@ -1,7 +1,7 @@
 #ifndef __OBD2_H__
 #define __OBD2_H__
 
-#include <isotp/isotp.h>
+#include <obd2/obd2_types.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -9,163 +9,87 @@
 extern "C" {
 #endif
 
-// TODO This isn't true for multi frame messages - we may need to dynamically
-// allocate this in the future
-#define MAX_OBD2_PAYLOAD_LENGTH 7
-#define VIN_LENGTH 17
-
-typedef enum {
-    DIAGNOSTIC_REQUEST_TYPE_PID,
-    DIAGNOSTIC_REQUEST_TYPE_DTC,
-    DIAGNOSTIC_REQUEST_TYPE_MIL_STATUS,
-    DIAGNOSTIC_REQUEST_TYPE_VIN
-} DiagnosticRequestType;
-
-typedef struct {
-    DiagnosticRequestType type;
-    uint16_t arbitration_id;
-    uint8_t mode;
-    uint16_t pid;
-    uint8_t pid_length;
-    uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];
-    uint8_t payload_length;
-} DiagnosticRequest;
-
-// Thanks to
-// http://www.canbushack.com/blog/index.php?title=scanning-for-diagnostic-data&more=1&c=1&tb=1&pb=1
-// for the list of NRCs
-typedef enum {
-    NRC_SUCCESS = 0x0,
-    NRC_SERVICE_NOT_SUPPORTED = 0x11,
-    NRC_SUB_FUNCTION_NOT_SUPPORTED = 0x12,
-    NRC_CONDITIONS_NOT_CORRECT = 0x22,
-    NRC_REQUEST_OUT_OF_RANGE = 0x31,
-    NRC_SECURITY_ACCESS_DENIED = 0x33,
-    NRC_INVALID_KEY = 0x35,
-    NRC_TOO_MANY_ATTEMPS = 0x36,
-    NRC_TIME_DELAY_NOT_EXPIRED = 0x37,
-    NRC_RESPONSE_PENDING = 0x78
-} DiagnosticNegativeResponseCode;
-
-typedef enum {
-    OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST = 0x1,
-    OBD2_MODE_POWERTRAIN_FREEZE_FRAME_REQUEST = 0x2,
-    OBD2_MODE_EMISSIONS_DTC_REQUEST = 0x3,
-    OBD2_MODE_EMISSIONS_DTC_CLEAR = 0x4,
-    // 0x5 is for non-CAN only
-    // OBD2_MODE_OXYGEN_SENSOR_TEST = 0x5,
-    OBD2_MODE_TEST_RESULTS = 0x6,
-    OBD2_MODE_DRIVE_CYCLE_DTC_REQUEST = 0x7,
-    OBD2_MODE_CONTROL = 0x8,
-    OBD2_MODE_VEHICLE_INFORMATION = 0x9,
-    OBD2_MODE_PERMANENT_DTC_REQUEST = 0xa,
-    // this one isn't technically in OBD2, but both of the enhanced standards
-    // have their PID requests at 0x22
-    OBD2_MODE_ENHANCED_DIAGNOSTIC_REQUEST = 0x22
-} DiagnosticMode;
-
-typedef enum {
-    DTC_EMISSIONS,
-    DTC_DRIVE_CYCLE,
-    DTC_PERMANENT
-} DiagnosticTroubleCodeType;
-
-typedef struct {
-    uint16_t arbitration_id;
-    uint8_t mode;
-    bool completed;
-    bool success;
-    uint16_t pid;
-    DiagnosticNegativeResponseCode negative_response_code;
-    uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];
-    uint8_t payload_length;
-} DiagnosticResponse;
-
-typedef enum {
-    POWERTRAIN = 0x0,
-    CHASSIS = 0x1,
-    BODY = 0x2,
-    NETWORK = 0x3
-} DiagnosticTroubleCodeGroup;
-
-typedef struct {
-    DiagnosticTroubleCodeGroup group;
-    uint8_t group_num;
-    uint8_t code;
-} DiagnosticTroubleCode;
-
-typedef void (*DiagnosticResponseReceived)(const DiagnosticResponse* response);
-typedef void (*DiagnosticMilStatusReceived)(bool malfunction_indicator_status);
-typedef void (*DiagnosticVinReceived)(uint8_t vin[]);
-typedef void (*DiagnosticTroubleCodesReceived)(
-        DiagnosticMode mode, DiagnosticTroubleCode* codes);
-typedef void (*DiagnosticPidEnumerationReceived)(
-        const DiagnosticResponse* response, uint16_t* pids);
-
-// TODO should we enumerate every OBD-II PID? need conversion formulas, too
-typedef struct {
-    uint16_t pid;
-    uint8_t bytes_returned;
-    float min_value;
-    float max_value;
-} DiagnosticParameter;
-
-typedef struct {
-    DiagnosticRequest request;
-    bool success;
-    bool completed;
-
-    IsoTpShims isotp_shims;
-    IsoTpSendHandle isotp_send_handle;
-    IsoTpReceiveHandle isotp_receive_handle;
-    DiagnosticResponseReceived callback;
-    DiagnosticMilStatusReceived mil_status_callback;
-    DiagnosticVinReceived vin_callback;
-} DiagnosticRequestHandle;
-
-typedef enum {
-    DIAGNOSTIC_STANDARD_PID,
-    DIAGNOSTIC_ENHANCED_PID
-} DiagnosticPidRequestType;
-
-typedef struct {
-    LogShim log;
-    SendCanMessageShim send_can_message;
-    SetTimerShim set_timer;
-} DiagnosticShims;
-
+/* Public: Initialize an DiagnosticShims with the given callback functions.
+ *
+ * If any callbacks are not to be used, set them to NULL. For documentation of
+ * the function type signatures, see higher up in this header file. This struct
+ * is a handy encapsulation used to pass the shims around to the various
+ * diagnostic_* functions.
+ *
+ * Returns a struct with the fields initailized to the callbacks.
+ */
 DiagnosticShims diagnostic_init_shims(LogShim log,
         SendCanMessageShim send_can_message,
         SetTimerShim set_timer);
 
+/* Public: Initiate a diagnostic request and return a handle, ready to completly
+ * send the request and process the response via
+ * diagnostic_receive_can_frame(...).
+ *
+ * shims -  Low-level shims required to send CAN messages, etc.
+ * request -
+ * callback - an optional function to be called when the response is receved
+ *      (use NULL if no callback is required).
+ *
+ * Returns a handle to be used with diagnostic_receive_can_frame to complete
+ * sending the request and receive the response. The 'completed' field in the
+ * returned DiagnosticRequestHandle will be true when the message is completely
+ * sent.
+ */
 DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticResponseReceived callback);
 
-// decide mode 0x1 / 0x22 based on pid type
+/* Public: Request a PID from the given arbitration ID, determining the mode
+ * automatically based on the PID type.
+ *
+ * shims -  Low-level shims required to send CAN messages, etc.
+ * pid_request_type - either DIAGNOSTIC_STANDARD_PID (will use mode 0x1 and 1
+ *      byte PIDs) or DIAGNOSTIC_ENHANCED_PID (will use mode 0x22 and 2 byte
+ *      PIDs)
+ * arbitration_id - The arbitration ID to send the request to.
+ * pid - The PID to request from the other node.
+ * callback - an optional function to be called when the response is receved
+ *      (use NULL if no callback is required).
+ *
+ * Returns a handle to be used with diagnostic_receive_can_frame to complete
+ * sending the request and receive the response. The 'completed' field in the
+ * returned DiagnosticRequestHandle will be true when the message is completely
+ * sent.
+ */
 DiagnosticRequestHandle diagnostic_request_pid(DiagnosticShims* shims,
         DiagnosticPidRequestType pid_request_type, uint16_t arbitration_id,
         uint16_t pid, DiagnosticResponseReceived callback);
 
-DiagnosticRequestHandle diagnostic_request_malfunction_indicator_status(
-        DiagnosticShims* shims,
-        DiagnosticMilStatusReceived callback);
-
-DiagnosticRequestHandle diagnostic_request_vin(DiagnosticShims* shims,
-        DiagnosticVinReceived callback);
-
-DiagnosticRequestHandle diagnostic_request_dtc(DiagnosticShims* shims,
-        DiagnosticTroubleCodeType dtc_type,
-        DiagnosticTroubleCodesReceived callback);
-
-bool diagnostic_clear_dtc(DiagnosticShims* shims);
-
-DiagnosticRequestHandle diagnostic_enumerate_pids(DiagnosticShims* shims,
-        DiagnosticRequest* request, DiagnosticPidEnumerationReceived callback);
-
+/* Public: Continue to send and receive a single diagnostic request, based on a
+ * freshly received CAN message.
+ *
+ * shims -  Low-level shims required to send CAN messages, etc.
+ * handle - A DiagnosticRequestHandle previously returned by one of the
+ *      diagnostic_request*(..) functions.
+ * arbitration_id - The arbitration_id of the received CAN message.
+ * data - The data of the received CAN message.
+ * size - The size of the data in the received CAN message.
+ *
+ * Returns true if the request was completed and response received, or the
+ * request was otherwise cancelled. Check the 'success' field of the handle to
+ * see if it was successful.
+ */
 DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         DiagnosticRequestHandle* handle,
         const uint16_t arbitration_id, const uint8_t data[],
         const uint8_t size);
+
+/* Public: Render a DiagnosticResponse as a string into the given buffer.
+ *
+ * TODO implement this
+ *
+ * message - the response to convert to a string, for debug logging.
+ * destination - the target string buffer.
+ * destination_length - the size of the destination buffer, i.e. the max size
+ *      for the rendered string.
+ */
+// void diagnostic_response_to_string(const DiagnosticResponse* response,
+        // char* destination, size_t destination_length);
 
 #ifdef __cplusplus
 }
