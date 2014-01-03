@@ -139,10 +139,10 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
     if(!handle->isotp_send_handle.completed) {
         // TODO when completing a send, this returns...a Message? we have to
         // check when the isotp_send_handle is completed, and if it is, start
-        isotp_receive_can_frame(&handle->isotp_shims,
+        isotp_continue_send(&handle->isotp_shims,
                 &handle->isotp_send_handle, arbitration_id, data, size);
     } else if(!handle->isotp_receive_handle.completed) {
-        IsoTpMessage message = isotp_receive_can_frame(&handle->isotp_shims,
+        IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
                 &handle->isotp_receive_handle, arbitration_id, data, size);
 
         if(message.completed) {

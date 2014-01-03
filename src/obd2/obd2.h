@@ -31,10 +31,6 @@ typedef struct {
     uint8_t payload_length;
 } DiagnosticRequest;
 
-// TODO I don't like this, it's hard coding isotp library stuff here
-typedef bool (*SendIsoTpMessageShim)(IsoTpHandle* handle,
-        const uint8_t* payload, uint16_t payload_size);
-
 // Thanks to
 // http://www.canbushack.com/blog/index.php?title=scanning-for-diagnostic-data&more=1&c=1&tb=1&pb=1
 // for the list of NRCs
@@ -120,8 +116,8 @@ typedef struct {
     bool completed;
 
     IsoTpShims isotp_shims;
-    IsoTpHandle isotp_send_handle;
-    IsoTpHandle isotp_receive_handle;
+    IsoTpSendHandle isotp_send_handle;
+    IsoTpReceiveHandle isotp_receive_handle;
     DiagnosticResponseReceived callback;
     DiagnosticMilStatusReceived mil_status_callback;
     DiagnosticVinReceived vin_callback;
