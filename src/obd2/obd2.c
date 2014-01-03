@@ -158,11 +158,6 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                 if(handle_negative_response(&message, &response, shims)) {
                     shims->log("Received a negative response to mode %d on arb ID 0x%x",
                             response.mode, response.arbitration_id);
-
-                    // TODO clarify what it means for a handle to be successful (we made
-                    // a good request+response) vs a request itself being
-                    // successfully
-                    // (the other node didn't return a negative response).
                     handle->success = true;
                     handle->completed = true;
                 } else if(handle_positive_response(handle, &message, &response,
