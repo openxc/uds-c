@@ -9,17 +9,6 @@ This library doesn't assume anything about the source of your diagnostic message
 requests or underlying interface to the CAN bus. It uses dependency injection to
 give you complete control.
 
-## OBD-II Basics
-
-TODO diagram out a request, response and error response
-
-* store the request arb id, mode, pid, and payload locally
-* send a can message
-* get all new can messages passed to it
-* Check the incoming can message to see if it matches one of the standard ECU
-  response IDs, or our arb ID + 0x8
-* if it matches, parse the diagnostic response and call the callback
-
 ## Usage
 
 First, create some shim functions to let this library use your lower level
@@ -166,6 +155,18 @@ You can also see the test coverage if you have `lcov` installed and the
 `BROWSER` environment variable set to your choice of web browsers:
 
     $ BROWSER=google-chrome-stable make coverage
+
+## OBD-II Basics
+
+TODO diagram out a request, response and error response
+
+* store the request arb id, mode, pid, and payload locally
+* send a can message
+* get all new can messages passed to it
+* Check the incoming can message to see if it matches one of the standard ECU
+  response IDs, or our arb ID + 0x8
+* if it matches, parse the diagnostic response and call the callback
+
 
 ## Future Notes
 
