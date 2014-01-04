@@ -14,6 +14,11 @@ extern "C" {
 #define MAX_OBD2_PAYLOAD_LENGTH 7
 #define VIN_LENGTH 17
 
+/* Private: The four main types of diagnositc requests that determine how the
+ * request should be parsed and what type of callback should be used.
+ *
+ * TODO this may not be used...yet?
+ */
 typedef enum {
     DIAGNOSTIC_REQUEST_TYPE_PID,
     DIAGNOSTIC_REQUEST_TYPE_DTC,
@@ -21,19 +26,39 @@ typedef enum {
     DIAGNOSTIC_REQUEST_TYPE_VIN
 } DiagnosticRequestType;
 
+/* Public: A container for a single diagnostic request.
+ *
+ * The only required fields are the arbitration_id and mode.
+ *
+ * arbitration_id - The arbitration ID to send the request.
+ * mode - The OBD-II mode for the request.
+ * pid - (optional) The PID to request, if the mode requires one.
+ * pid_length - The length of the PID field, either 1 (standard) or 2 bytes
+ *      (extended).
+ * payload - (optional) The payload for the request, if the request requires
+ *      one. If payload_length is 0 this field is ignored.
+ * payload_length - The length of the payload, or 0 if no payload is used.
+ * type - the type of the request (TODO unused)
+ */
 typedef struct {
-    DiagnosticRequestType type;
     uint16_t arbitration_id;
     uint8_t mode;
     uint16_t pid;
     uint8_t pid_length;
     uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];
     uint8_t payload_length;
+    DiagnosticRequestType type;
 } DiagnosticRequest;
 
-// Thanks to
-// http://www.canbushack.com/blog/index.php?title=scanning-for-diagnostic-data&more=1&c=1&tb=1&pb=1
-// for the list of NRCs
+/* Public: All possible negative response codes that could be received from a
+ * requested node.
+ *
+ * When a DiagnosticResponse is received and the 'completed' field is true, but
+ * the 'success' field is false, the 'negative_response_code' field will contain
+ * one of these values as reported by the requested node.
+ *
+ * Thanks to canbushack.com for the list of NRCs.
+ */
 typedef enum {
     NRC_SUCCESS = 0x0,
     NRC_SERVICE_NOT_SUPPORTED = 0x11,
@@ -47,6 +72,36 @@ typedef enum {
     NRC_RESPONSE_PENDING = 0x78
 } DiagnosticNegativeResponseCode;
 
+/* Public: A partially or fully completed response to a diagnostic request.
+ *
+ * completed - True if the request is complete - some functions return a
+ *      DiagnosticResponse even when it's only partially completed, so be sure
+ *      to check this field.
+ * success - True if the request was successful. The value if this
+ *      field isn't valid if 'completed' isn't true. If this is 'false', check
+ *      the negative_response_code field for the reason.
+ * arbitration_id - The arbitration ID the response was received on.
+ * mode - The OBD-II mode for the original request.
+ * pid - If the request was for a PID, this is the PID echo.
+ * negative_response_code - If the request was not successful, 'success' will be
+ *      false and this will be set to a DiagnosticNegativeResponseCode returned
+ *      by the other node.
+ * payload - An optional payload for the response - NULL if no payload.
+ * payload_length - The length of the payload or 0 if none.
+ */
+typedef struct {
+    bool completed;
+    bool success;
+    uint16_t arbitration_id;
+    uint8_t mode;
+    uint16_t pid;
+    DiagnosticNegativeResponseCode negative_response_code;
+    uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];
+    uint8_t payload_length;
+} DiagnosticResponse;
+
+/* Public: Friendly names for all OBD-II modes.
+ */
 typedef enum {
     OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST = 0x1,
     OBD2_MODE_POWERTRAIN_FREEZE_FRAME_REQUEST = 0x2,
@@ -64,57 +119,32 @@ typedef enum {
     OBD2_MODE_ENHANCED_DIAGNOSTIC_REQUEST = 0x22
 } DiagnosticMode;
 
-typedef enum {
-    DTC_EMISSIONS,
-    DTC_DRIVE_CYCLE,
-    DTC_PERMANENT
-} DiagnosticTroubleCodeType;
-
-typedef struct {
-    uint16_t arbitration_id;
-    uint8_t mode;
-    bool completed;
-    bool success;
-    uint16_t pid;
-    DiagnosticNegativeResponseCode negative_response_code;
-    uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];
-    uint8_t payload_length;
-} DiagnosticResponse;
-
-typedef enum {
-    POWERTRAIN = 0x0,
-    CHASSIS = 0x1,
-    BODY = 0x2,
-    NETWORK = 0x3
-} DiagnosticTroubleCodeGroup;
-
-typedef struct {
-    DiagnosticTroubleCodeGroup group;
-    uint8_t group_num;
-    uint8_t code;
-} DiagnosticTroubleCode;
-
+/* Public the signature for an optional function to be called when a diagnostic
+ * request is complete, and a response is received or there is a fatal error.
+ *
+ * response - the completed DiagnosticResponse.
+ */
 typedef void (*DiagnosticResponseReceived)(const DiagnosticResponse* response);
-typedef void (*DiagnosticMilStatusReceived)(bool malfunction_indicator_status);
-typedef void (*DiagnosticVinReceived)(uint8_t vin[]);
-typedef void (*DiagnosticTroubleCodesReceived)(
-        DiagnosticMode mode, DiagnosticTroubleCode* codes);
-typedef void (*DiagnosticPidEnumerationReceived)(
-        const DiagnosticResponse* response, uint16_t* pids);
 
-// TODO should we enumerate every OBD-II PID? need conversion formulas, too
-typedef struct {
-    uint16_t pid;
-    uint8_t bytes_returned;
-    float min_value;
-    float max_value;
-} DiagnosticParameter;
-
+/* Public: A handle for initiating and continuing a single diagnostic request.
+ *
+ * A diagnostic request requires one or more CAN messages to be sent, and one
+ * or more CAN messages to be received before it is completed. This struct
+ * encapsulates the local state required to track the request while it is in
+ * progress.
+ *
+ * request - The original DiagnosticRequest that this handle was created for.
+ * completed - True if the request was completed successfully, or was otherwise
+ *      cancelled.
+ * success - True if the request send and receive process was successful. The
+ *      value if this field isn't valid if 'completed' isn't true.
+ */
 typedef struct {
     DiagnosticRequest request;
     bool success;
     bool completed;
 
+    // Private
     IsoTpShims isotp_shims;
     IsoTpSendHandle isotp_send_handle;
     IsoTpReceiveHandle isotp_receive_handle;
@@ -123,11 +153,20 @@ typedef struct {
     // DiagnosticVinReceived vin_callback;
 } DiagnosticRequestHandle;
 
+/* Public: The two major types of PIDs that determine the OBD-II mode and PID
+ * field length.
+ */
 typedef enum {
     DIAGNOSTIC_STANDARD_PID,
     DIAGNOSTIC_ENHANCED_PID
 } DiagnosticPidRequestType;
 
+/* Public: A container for the 3 shim functions used by the library to interact
+ * with the wider system.
+ *
+ * Use the diagnostic_init_shims(...) function to create an instance of this
+ * struct.
+ */
 typedef struct {
     LogShim log;
     SendCanMessageShim send_can_message;
