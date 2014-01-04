@@ -91,7 +91,7 @@ address, `0x7df`:
         }
     }
 
-## Requests for other modes
+### Requests for other modes
 
 If you want to do more besides PID requests on mode 0x1 and 0x22, there's a
 lower level API you can use. Here's how to make a mode 3 request to get DTCs.
@@ -144,6 +144,13 @@ lower level API you can use. Here's how to make a mode 3 request to get DTCs.
             }
         }
     }
+
+## Dependencies
+
+This library requires 2 dependencies:
+
+* [isotp-c](https://github.com/openxc/isotp-c)
+* [bitfield-c](https://github.com/openxc/bitfield-c)
 
 ## Testing
 
