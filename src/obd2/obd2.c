@@ -37,7 +37,8 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
     uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE];
     payload[MODE_BYTE_INDEX] = request->mode;
     if(request->pid_length > 0) {
-        // TODO may need to flip the byte order
+        // TODO need a set bit field that's more natural and checks endianness
+        // becauase we DO need to flip it
         copy_bytes_right_aligned((uint8_t*)&request->pid, sizeof(request->pid),
                 PID_BYTE_INDEX, request->pid_length, payload, sizeof(payload));
     }
