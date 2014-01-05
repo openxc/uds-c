@@ -1,5 +1,9 @@
 #include <obd2/obd2.h>
-#include <arpa/inet.h>
+#include <bitfield/bitfield.h>
+#include <string.h>
+#include <limits.h>
+#include <stddef.h>
+#include <sys/param.h>
 
 #define ARBITRATION_ID_OFFSET 0x8
 #define MODE_RESPONSE_OFFSET 0x40
@@ -33,7 +37,8 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
     uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE];
     payload[MODE_BYTE_INDEX] = request->mode;
     if(request->pid_length > 0) {
-        copy_bytes_right_aligned(&request->pid, sizeof(request->pid),
+        // TODO may need to flip the byte order
+        copy_bytes_right_aligned((uint8_t*)&request->pid, sizeof(request->pid),
                 PID_BYTE_INDEX, request->pid_length, payload, sizeof(payload));
     }
     if(request->payload_length > 0) {
@@ -117,7 +122,9 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
         if(handle->request.pid_length > 0 && message->size > 1) {
             if(handle->request.pid_length == 2) {
                 response->pid = *(uint16_t*)&message->payload[PID_BYTE_INDEX];
-                response->pid = ntohs(response->pid);
+                if(BYTE_ORDER == LITTLE_ENDIAN) {
+                    response->pid = __builtin_bswap32(response->pid << 16);
+                }
             } else {
                 response->pid = message->payload[PID_BYTE_INDEX];
             }
