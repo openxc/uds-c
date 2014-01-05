@@ -49,10 +49,26 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
     handle.isotp_shims = isotp_init_shims(shims->log,
             shims->send_can_message,
             shims->set_timer);
+
     handle.isotp_send_handle = isotp_send(&handle.isotp_shims,
             request->arbitration_id, payload,
             1 + request->payload_length + request->pid_length,
             NULL);
+    if(shims->log != NULL) {
+        shims->log("Sending diagnostic request: arb_id: 0x%02x, mode: 0x%x, pid: 0x%x, payload: 0x%02x%02x%02x%02x%02x%02x%02x%02x, size: %d\r\n",
+                request->arbitration_id,
+                request->mode,
+                request->pid,
+                request->payload[0],
+                request->payload[1],
+                request->payload[2],
+                request->payload[3],
+                request->payload[4],
+                request->payload[5],
+                request->payload[6],
+                request->payload[7],
+                request->payload_length);
+    }
 
     handle.isotp_receive_handle = isotp_receive(&handle.isotp_shims,
             request->arbitration_id + ARBITRATION_ID_OFFSET,
