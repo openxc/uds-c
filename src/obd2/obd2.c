@@ -14,6 +14,10 @@
 #define NEGATIVE_RESPONSE_MODE_INDEX 1
 #define NEGATIVE_RESPONSE_NRC_INDEX 2
 
+#ifndef MAX
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#endif
+
 DiagnosticShims diagnostic_init_shims(LogShim log,
         SendCanMessageShim send_can_message,
         SetTimerShim set_timer) {
@@ -146,7 +150,7 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
         }
 
         uint8_t payload_index = 1 + handle->request.pid_length;
-        response->payload_length = message->size - payload_index;
+        response->payload_length = MAX(0, message->size - payload_index);
         if(response->payload_length > 0) {
             memcpy(response->payload, &message->payload[payload_index],
                     response->payload_length);
