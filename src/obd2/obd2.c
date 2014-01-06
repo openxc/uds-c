@@ -34,7 +34,7 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
         completed: false
     };
 
-    uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE];
+    uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE] = {0};
     payload[MODE_BYTE_INDEX] = request->mode;
     if(request->pid_length > 0) {
         set_bitfield(request->pid, PID_BYTE_INDEX * CHAR_BIT,
