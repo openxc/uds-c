@@ -37,10 +37,8 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
     uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE];
     payload[MODE_BYTE_INDEX] = request->mode;
     if(request->pid_length > 0) {
-        // TODO need a set bit field that's more natural and checks endianness
-        // becauase we DO need to flip it
-        copy_bytes_right_aligned((uint8_t*)&request->pid, sizeof(request->pid),
-                PID_BYTE_INDEX, request->pid_length, payload, sizeof(payload));
+        set_bitfield(request->pid, PID_BYTE_INDEX * CHAR_BIT,
+                request->pid_length * CHAR_BIT, payload, sizeof(payload));
     }
     if(request->payload_length > 0) {
         memcpy(&payload[PID_BYTE_INDEX + request->pid_length],
