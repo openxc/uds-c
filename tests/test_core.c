@@ -140,8 +140,11 @@ START_TEST (test_wrong_mode_response)
     const uint8_t can_data[] = {0x4, 0x1 + 0x40, 0x0, 0x2, 0x45};
     diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
             sizeof(can_data));
-    fail_if(last_response_was_received);
-    fail_if(handle.completed);
+    // TODO change this if we even re-request a message receipt on a mode or PID
+    // mismatch
+    fail_unless(last_response_was_received);
+    fail_unless(handle.completed);
+    fail_if(last_response_received.success);
 }
 END_TEST
 

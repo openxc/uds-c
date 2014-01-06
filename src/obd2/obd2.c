@@ -147,6 +147,8 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
             } else {
                 response->pid = message->payload[PID_BYTE_INDEX];
             }
+            // TODO we're not currently throwing an error or anything if the PID
+            // doesn't match - it may be OK to leave that up to the user.
         }
 
         uint8_t payload_index = 1 + handle->request.pid_length;
@@ -197,13 +199,23 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                             response.mode - MODE_RESPONSE_OFFSET,
                             handle->request.mode);
                 }
+            } else {
+                shims->log("Received an empty response on arb ID 0x%x",
+                        response.arbitration_id);
             }
+            // TODO For now even if we got an empty repsonse or something for
+            // the wrong mode, we're marking this as completed - I'm not sure
+            // those other cases could or will ever happen in practice.
+            // Alternatively, we could re-init handle->isotp_receive_handle if
+            // the current one completed without a valid response to this
+            // diagnostic request.
+            response.completed = true;
+            handle->completed = true;
 
             if(handle->completed && handle->callback != NULL) {
                 handle->callback(&response);
             }
         }
-
     } else {
         shims->log("Mode %d request to arb ID 0x%x is already completed",
                 handle->request.mode, handle->request.arbitration_id);
