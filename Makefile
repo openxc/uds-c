@@ -1,6 +1,6 @@
 CC = gcc
 INCLUDES = -Isrc -Ideps/bitfield-c/src -Ideps/isotp-c/src
-CFLAGS = $(INCLUDES) -c -w -Wall -Werror -g -ggdb -std=gnu++0x -coverage
+CFLAGS = $(INCLUDES) -c -Wall -Werror -g -ggdb -std=gnu99 -coverage
 LDFLAGS = -coverage -lm
 LDLIBS = -lcheck
 
