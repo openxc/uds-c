@@ -37,8 +37,8 @@ With your shims in place, create a `DiagnosticShims` object to pass them around:
 
     DiagnosticShims shims = diagnostic_init_shims(debug, send_can, set_timer);
 
-With your shims in hand, send a simple PID request to the stadnard broadcast
-address, `0x7df`:
+With your shims in hand, send a simple PID request to the standard broadcast
+address, `0x7df` (we use the constant `OBD2_FUNCTIONAL_BROADCAST_ID` here):
 
     // Optional: This is your callback that will be called the response to your
     // diagnostic request is received.
@@ -48,7 +48,7 @@ address, `0x7df`:
 
     DiagnosticRequestHandle handle = diagnostic_request_pid(&shims,
             DIAGNOSTIC_STANDARD_PID, // this is a standard PID request, not an extended or enhanced one
-            0x7df, // the request is going out to the broadcast arbitration ID
+            OBD2_FUNCTIONAL_BROADCAST_ID, // the request is going out to the broadcast arbitration ID
             0x2, // we want PID 0x2
             response_received_handler); // our callback (optional, use NULL if you don't have one)
 
@@ -97,7 +97,7 @@ If you want to do more besides PID requests on mode 0x1 and 0x22, there's a
 lower level API you can use. Here's how to make a mode 3 request to get DTCs.
 
     DiagnosticRequest request = {
-        arbitration_id: 0x7df,
+        arbitration_id: OBD2_FUNCTIONAL_BROADCAST_ID,
         mode: OBD2_MODE_EMISSIONS_DTC_REQUEST
     };
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request, NULL);

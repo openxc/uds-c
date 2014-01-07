@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define OBD2_FUNCTIONAL_BROADCAST_ID 0x7df
+
 #ifdef __cplusplus
 extern "C" {
 #endif

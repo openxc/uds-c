@@ -20,7 +20,7 @@ void response_received_handler(const DiagnosticResponse* response) {
 START_TEST (test_receive_wrong_arb_id)
 {
     DiagnosticRequest request = {
-        arbitration_id: 0x7df,
+        arbitration_id: OBD2_FUNCTIONAL_BROADCAST_ID,
         mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST
     };
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
@@ -37,7 +37,7 @@ END_TEST
 START_TEST (test_send_diag_request_with_payload)
 {
     DiagnosticRequest request = {
-        arbitration_id: 0x7df,
+        arbitration_id: OBD2_FUNCTIONAL_BROADCAST_ID,
         mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST,
         payload: {0x12, 0x34},
         payload_length: 2
@@ -59,7 +59,7 @@ END_TEST
 START_TEST (test_send_diag_request)
 {
     DiagnosticRequest request = {
-        arbitration_id: 0x7df,
+        arbitration_id: OBD2_FUNCTIONAL_BROADCAST_ID,
         mode: OBD2_MODE_EMISSIONS_DTC_REQUEST
     };
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
@@ -89,8 +89,7 @@ END_TEST
 
 START_TEST (test_request_pid_standard)
 {
-    // TODO need a constant for the 7df broadcast functional request
-    uint16_t arb_id = 0x7df;
+    uint16_t arb_id = OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
             DIAGNOSTIC_STANDARD_PID, arb_id, 0x2, response_received_handler);
 
@@ -111,7 +110,7 @@ END_TEST
 
 START_TEST (test_request_pid_enhanced)
 {
-    uint16_t arb_id = 0x7df;
+    uint16_t arb_id = OBD2_FUNCTIONAL_BROADCAST_ID;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
             DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
 
@@ -132,7 +131,7 @@ END_TEST
 
 START_TEST (test_wrong_mode_response)
 {
-    uint16_t arb_id = 0x7df;
+    uint16_t arb_id = OBD2_FUNCTIONAL_BROADCAST_ID;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
             DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
 
@@ -151,7 +150,7 @@ END_TEST
 START_TEST (test_handle_completed)
 {
     DiagnosticRequest request = {
-        arbitration_id: 0x7df,
+        arbitration_id: OBD2_FUNCTIONAL_BROADCAST_ID,
         mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST
     };
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
@@ -185,7 +184,7 @@ END_TEST
 START_TEST (test_negative_response)
 {
     DiagnosticRequest request = {
-        arbitration_id: 0x7df,
+        arbitration_id: OBD2_FUNCTIONAL_BROADCAST_ID,
         mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST
     };
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
