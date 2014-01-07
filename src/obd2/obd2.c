@@ -140,10 +140,8 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
         response->mode = handle->request.mode;
         if(handle->request.pid_length > 0 && message->size > 1) {
             if(handle->request.pid_length == 2) {
-                response->pid = *(uint16_t*)&message->payload[PID_BYTE_INDEX];
-                if(BYTE_ORDER == LITTLE_ENDIAN) {
-                    response->pid = __builtin_bswap32(response->pid << 16);
-                }
+                response->pid = get_bitfield(message->payload, message->size,
+                        PID_BYTE_INDEX * CHAR_BIT, sizeof(uint16_t) * CHAR_BIT);
             } else {
                 response->pid = message->payload[PID_BYTE_INDEX];
             }
