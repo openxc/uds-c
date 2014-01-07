@@ -58,7 +58,7 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
             1 + request->payload_length + request->pid_length,
             NULL);
     if(shims->log != NULL) {
-        shims->log("Sending diagnostic request: arb_id: 0x%02x, mode: 0x%x, pid: 0x%x, payload: 0x%02x%02x%02x%02x%02x%02x%02x%02x, size: %d\r\n",
+        shims->log("Sending diagnostic request: arb_id: 0x%02x, mode: 0x%x, pid: 0x%x, payload: 0x%02x%02x%02x%02x%02x%02x%02x, size: %d\r\n",
                 request->arbitration_id,
                 request->mode,
                 request->pid,
@@ -69,7 +69,6 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
                 request->payload[4],
                 request->payload[5],
                 request->payload[6],
-                request->payload[7],
                 request->payload_length);
     }
 
