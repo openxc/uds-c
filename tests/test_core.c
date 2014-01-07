@@ -139,11 +139,23 @@ START_TEST (test_wrong_mode_response)
     const uint8_t can_data[] = {0x4, 0x1 + 0x40, 0x0, 0x2, 0x45};
     diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
             sizeof(can_data));
-    // TODO change this if we even re-request a message receipt on a mode or PID
-    // mismatch
-    fail_unless(last_response_was_received);
-    fail_unless(handle.completed);
-    fail_if(last_response_received.success);
+    fail_if(last_response_was_received);
+    fail_if(handle.completed);
+}
+END_TEST
+
+START_TEST (test_wrong_pid_response)
+{
+    uint16_t arb_id = OBD2_FUNCTIONAL_BROADCAST_ID;
+    DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
+            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
+
+    fail_if(last_response_was_received);
+    const uint8_t can_data[] = {0x4, 0x22 + 0x40, 0x0, 0x3, 0x45};
+    diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
+            sizeof(can_data));
+    fail_if(last_response_was_received);
+    fail_if(handle.completed);
 }
 END_TEST
 
@@ -216,6 +228,7 @@ Suite* testSuite(void) {
     tcase_add_test(tc_core, test_request_pid_standard);
     tcase_add_test(tc_core, test_request_pid_enhanced);
     tcase_add_test(tc_core, test_wrong_mode_response);
+    tcase_add_test(tc_core, test_wrong_pid_response);
     tcase_add_test(tc_core, test_handle_completed);
     tcase_add_test(tc_core, test_negative_response);
 
