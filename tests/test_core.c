@@ -159,6 +159,30 @@ START_TEST (test_wrong_pid_response)
 }
 END_TEST
 
+START_TEST (test_wrong_pid_then_right_completes)
+{
+    uint16_t arb_id = OBD2_FUNCTIONAL_BROADCAST_ID;
+    DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
+            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
+
+    fail_if(last_response_was_received);
+    uint8_t can_data[] = {0x4, 0x22 + 0x40, 0x0, 0x3, 0x45};
+    diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
+            sizeof(can_data));
+    fail_if(last_response_was_received);
+    fail_if(handle.completed);
+
+    can_data[3] = 0x2;
+    diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
+            sizeof(can_data));
+    fail_unless(last_response_was_received);
+    fail_unless(handle.completed);
+    fail_unless(handle.success);
+    fail_unless(last_response_received.success);
+    ck_assert_int_eq(last_response_received.pid, 0x2);
+}
+END_TEST
+
 START_TEST (test_handle_completed)
 {
     DiagnosticRequest request = {
@@ -229,6 +253,7 @@ Suite* testSuite(void) {
     tcase_add_test(tc_core, test_request_pid_enhanced);
     tcase_add_test(tc_core, test_wrong_mode_response);
     tcase_add_test(tc_core, test_wrong_pid_response);
+    tcase_add_test(tc_core, test_wrong_pid_then_right_completes);
     tcase_add_test(tc_core, test_handle_completed);
     tcase_add_test(tc_core, test_negative_response);
 
