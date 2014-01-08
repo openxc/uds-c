@@ -205,8 +205,9 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                     handle->completed = true;
                 } else {
                     shims->log("Response was for a mode 0x%x request (pid 0x%x), not our mode 0x%x request (pid 0x%x)",
-                            response.mode - MODE_RESPONSE_OFFSET, response.pid,
-                            handle->request.mode, handle->request.pid);
+                            MAX(0, response.mode - MODE_RESPONSE_OFFSET),
+                            response.pid, handle->request.mode,
+                            handle->request.pid);
                     setup_receive_handle(handle);
                 }
             } else {
