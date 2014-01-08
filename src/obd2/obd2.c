@@ -161,7 +161,8 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
                     response->payload_length);
         }
 
-        if(!has_pid || response->pid == handle->request.pid) {
+        if((handle->request.pid_length == 0 && !has_pid)
+                || response->pid == handle->request.pid) {
             response->success = true;
             response->completed = true;
         } else {
