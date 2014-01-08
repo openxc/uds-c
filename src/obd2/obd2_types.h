@@ -126,6 +126,8 @@ typedef enum {
  */
 typedef void (*DiagnosticResponseReceived)(const DiagnosticResponse* response);
 
+typedef float (*DiagnosticResponseDecoder)(const DiagnosticResponse* response);
+
 /* Public: A handle for initiating and continuing a single diagnostic request.
  *
  * A diagnostic request requires one or more CAN messages to be sent, and one
