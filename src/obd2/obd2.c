@@ -31,7 +31,8 @@ DiagnosticShims diagnostic_init_shims(LogShim log,
 
 static void setup_receive_handle(DiagnosticRequestHandle* handle) {
     if(handle->request.arbitration_id == OBD2_FUNCTIONAL_BROADCAST_ID) {
-        for(uint16_t response_id = 0;
+        uint16_t response_id;
+        for(response_id = 0;
                 response_id < OBD2_FUNCTIONAL_RESPONSE_COUNT; ++response_id) {
             handle->isotp_receive_handles[response_id] = isotp_receive(
                     &handle->isotp_shims, OBD2_FUNCTIONAL_RESPONSE_START + response_id,
@@ -197,7 +198,8 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         isotp_continue_send(&handle->isotp_shims,
                 &handle->isotp_send_handle, arbitration_id, data, size);
     } else {
-        for(uint8_t i = 0; i < handle->isotp_receive_handle_count; ++i) {
+        uint8_t i;
+        for(i = 0; i < handle->isotp_receive_handle_count; ++i) {
             IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
                     &handle->isotp_receive_handles[i], arbitration_id, data, size);
 
