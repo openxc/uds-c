@@ -6,6 +6,8 @@
 #include <stdbool.h>
 
 #define OBD2_FUNCTIONAL_BROADCAST_ID 0x7df
+#define OBD2_FUNCTIONAL_RESPONSE_START 0x7e8
+#define OBD2_FUNCTIONAL_RESPONSE_COUNT 8
 
 #ifdef __cplusplus
 extern "C" {

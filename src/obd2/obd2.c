@@ -30,9 +30,20 @@ DiagnosticShims diagnostic_init_shims(LogShim log,
 }
 
 static void setup_receive_handle(DiagnosticRequestHandle* handle) {
-    handle->isotp_receive_handle = isotp_receive(&handle->isotp_shims,
-            handle->request.arbitration_id + ARBITRATION_ID_OFFSET,
-            NULL);
+    if(handle->request.arbitration_id == OBD2_FUNCTIONAL_BROADCAST_ID) {
+        for(uint16_t response_id = 0;
+                response_id < OBD2_FUNCTIONAL_RESPONSE_COUNT; ++response_id) {
+            handle->isotp_receive_handles[response_id] = isotp_receive(
+                    &handle->isotp_shims, OBD2_FUNCTIONAL_RESPONSE_START + response_id,
+                    NULL);
+        }
+        handle->isotp_receive_handle_count = OBD2_FUNCTIONAL_RESPONSE_COUNT;
+    } else {
+        handle->isotp_receive_handle_count = 1;
+        handle->isotp_receive_handles[0] = isotp_receive(&handle->isotp_shims,
+                handle->request.arbitration_id + ARBITRATION_ID_OFFSET,
+                NULL);
+    }
 }
 
 
@@ -185,43 +196,46 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
     if(!handle->isotp_send_handle.completed) {
         isotp_continue_send(&handle->isotp_shims,
                 &handle->isotp_send_handle, arbitration_id, data, size);
-    } else if(!handle->isotp_receive_handle.completed) {
-        IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
-                &handle->isotp_receive_handle, arbitration_id, data, size);
+    } else {
+        for(uint8_t i = 0; i < handle->isotp_receive_handle_count; ++i) {
+            IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
+                    &handle->isotp_receive_handles[i], arbitration_id, data, size);
 
-        if(message.completed) {
-            if(message.size > 0) {
-                response.mode = message.payload[0];
-                if(handle_negative_response(&message, &response, shims)) {
-                    shims->log("Received a negative response to mode %d on arb ID 0x%x",
-                            response.mode, response.arbitration_id);
-                    handle->success = true;
-                    handle->completed = true;
-                } else if(handle_positive_response(handle, &message, &response,
-                            shims)) {
-                    shims->log("Received a positive mode %d response on arb ID 0x%x",
-                            response.mode, response.arbitration_id);
-                    handle->success = true;
-                    handle->completed = true;
+            // TODO as of now we're completing the handle as soon as one
+            // broadcast response is received....need to hang on for 100ms
+            if(message.completed) {
+                if(message.size > 0) {
+                    response.mode = message.payload[0];
+                    if(handle_negative_response(&message, &response, shims)) {
+                        shims->log("Received a negative response to mode %d on arb ID 0x%x",
+                                response.mode, response.arbitration_id);
+                        handle->success = true;
+                        handle->completed = true;
+                    } else if(handle_positive_response(handle, &message, &response,
+                                shims)) {
+                        shims->log("Received a positive mode %d response on arb ID 0x%x",
+                                response.mode, response.arbitration_id);
+                        handle->success = true;
+                        handle->completed = true;
+                    } else {
+                        shims->log("Response was for a mode 0x%x request (pid 0x%x), not our mode 0x%x request (pid 0x%x)",
+                                MAX(0, response.mode - MODE_RESPONSE_OFFSET),
+                                response.pid, handle->request.mode,
+                                handle->request.pid);
+                        // TODO just leave handles open until the user decides
+                        // to be done with it - keep a count of valid responses
+                        // received.
+                    }
                 } else {
-                    shims->log("Response was for a mode 0x%x request (pid 0x%x), not our mode 0x%x request (pid 0x%x)",
-                            MAX(0, response.mode - MODE_RESPONSE_OFFSET),
-                            response.pid, handle->request.mode,
-                            handle->request.pid);
-                    setup_receive_handle(handle);
+                    shims->log("Received an empty response on arb ID 0x%x",
+                            response.arbitration_id);
                 }
-            } else {
-                shims->log("Received an empty response on arb ID 0x%x",
-                        response.arbitration_id);
-            }
 
-            if(handle->completed && handle->callback != NULL) {
-                handle->callback(&response);
+                if(handle->completed && handle->callback != NULL) {
+                    handle->callback(&response);
+                }
             }
         }
-    } else {
-        shims->log("Mode %d request to arb ID 0x%x is already completed",
-                handle->request.mode, handle->request.arbitration_id);
     }
     return response;
 }
