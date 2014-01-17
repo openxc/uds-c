@@ -154,9 +154,9 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
         // hide the "response" version of the mode from the user
         // if it matched
         response->mode = handle->request.mode;
-        bool has_pid = false;
+        response->has_pid = false;
         if(handle->request.pid_length > 0 && message->size > 1) {
-            has_pid = true;
+            response->has_pid = true;
             if(handle->request.pid_length == 2) {
                 response->pid = get_bitfield(message->payload, message->size,
                         PID_BYTE_INDEX * CHAR_BIT, sizeof(uint16_t) * CHAR_BIT);
@@ -173,7 +173,7 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
                     response->payload_length);
         }
 
-        if((handle->request.pid_length == 0 && !has_pid)
+        if((handle->request.pid_length == 0 && !response->has_pid)
                 || response->pid == handle->request.pid) {
             response->success = true;
             response->completed = true;

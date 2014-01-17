@@ -83,7 +83,10 @@ typedef enum {
  *      the negative_response_code field for the reason.
  * arbitration_id - The arbitration ID the response was received on.
  * mode - The OBD-II mode for the original request.
- * pid - If the request was for a PID, this is the PID echo.
+ * has_pid - If this is a response to a PID request, this will be true and the
+ *      'pid' field will be valid.
+ * pid - If the request was for a PID, this is the PID echo. Only valid if
+ *      'has_pid' is true.
  * negative_response_code - If the request was not successful, 'success' will be
  *      false and this will be set to a DiagnosticNegativeResponseCode returned
  *      by the other node.
@@ -95,6 +98,7 @@ typedef struct {
     bool success;
     uint16_t arbitration_id;
     uint8_t mode;
+    bool has_pid;
     uint16_t pid;
     DiagnosticNegativeResponseCode negative_response_code;
     uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];

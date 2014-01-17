@@ -84,7 +84,7 @@ START_TEST (test_send_functional_request)
         ck_assert_int_eq(last_response_received.arbitration_id,
                 filter);
         ck_assert_int_eq(last_response_received.mode, request.mode);
-        ck_assert_int_eq(last_response_received.pid, 0);
+        fail_if(last_response_received.has_pid);
         ck_assert_int_eq(last_response_received.payload_length, 1);
         ck_assert_int_eq(last_response_received.payload[0], can_data[2]);
     }
@@ -116,7 +116,7 @@ START_TEST (test_send_diag_request)
     ck_assert_int_eq(last_response_received.arbitration_id,
             request.arbitration_id + 0x8);
     ck_assert_int_eq(last_response_received.mode, request.mode);
-    ck_assert_int_eq(last_response_received.pid, 0);
+        fail_if(last_response_received.has_pid);
     ck_assert_int_eq(last_response_received.payload_length, 1);
     ck_assert_int_eq(last_response_received.payload[0], can_data[2]);
 }
@@ -137,6 +137,7 @@ START_TEST (test_request_pid_standard)
     ck_assert_int_eq(last_response_received.arbitration_id,
             arb_id + 0x8);
     ck_assert_int_eq(last_response_received.mode, 0x1);
+    fail_unless(last_response_received.has_pid);
     ck_assert_int_eq(last_response_received.pid, 0x2);
     ck_assert_int_eq(last_response_received.payload_length, 1);
     ck_assert_int_eq(last_response_received.payload[0], can_data[3]);
@@ -158,6 +159,7 @@ START_TEST (test_request_pid_enhanced)
     ck_assert_int_eq(last_response_received.arbitration_id,
             arb_id + 0x8);
     ck_assert_int_eq(last_response_received.mode, 0x22);
+    fail_unless(last_response_received.has_pid);
     ck_assert_int_eq(last_response_received.pid, 0x2);
     ck_assert_int_eq(last_response_received.payload_length, 1);
     ck_assert_int_eq(last_response_received.payload[0], can_data[4]);
