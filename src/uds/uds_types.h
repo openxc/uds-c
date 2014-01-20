@@ -1,5 +1,5 @@
-#ifndef __OBD2_TYPES_H__
-#define __OBD2_TYPES_H__
+#ifndef __UDS_TYPES_H__
+#define __UDS_TYPES_H__
 
 #include <isotp/isotp.h>
 #include <stdint.h>
@@ -11,7 +11,7 @@ extern "C" {
 
 // TODO This isn't true for multi frame messages - we may need to dynamically
 // allocate this in the future
-#define MAX_OBD2_PAYLOAD_LENGTH 7
+#define MAX_UDS_PAYLOAD_LENGTH 7
 #define MAX_RESPONDING_ECU_COUNT 8
 #define VIN_LENGTH 17
 
@@ -46,7 +46,7 @@ typedef struct {
     uint8_t mode;
     uint16_t pid;
     uint8_t pid_length;
-    uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];
+    uint8_t payload[MAX_UDS_PAYLOAD_LENGTH];
     uint8_t payload_length;
     DiagnosticRequestType type;
 } DiagnosticRequest;
@@ -101,7 +101,7 @@ typedef struct {
     bool has_pid;
     uint16_t pid;
     DiagnosticNegativeResponseCode negative_response_code;
-    uint8_t payload[MAX_OBD2_PAYLOAD_LENGTH];
+    uint8_t payload[MAX_UDS_PAYLOAD_LENGTH];
     uint8_t payload_length;
 } DiagnosticResponse;
 
@@ -119,7 +119,7 @@ typedef enum {
     OBD2_MODE_CONTROL = 0x8,
     OBD2_MODE_VEHICLE_INFORMATION = 0x9,
     OBD2_MODE_PERMANENT_DTC_REQUEST = 0xa,
-    // this one isn't technically in OBD2, but both of the enhanced standards
+    // this one isn't technically in uds, but both of the enhanced standards
     // have their PID requests at 0x22
     OBD2_MODE_ENHANCED_DIAGNOSTIC_REQUEST = 0x22
 } DiagnosticMode;
@@ -185,4 +185,4 @@ typedef struct {
 }
 #endif
 
-#endif // __OBD2_TYPES_H__
+#endif // __UDS_TYPES_H__

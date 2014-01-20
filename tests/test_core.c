@@ -1,4 +1,4 @@
-#include <obd2/obd2.h>
+#include <uds/uds.h>
 #include <check.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -261,7 +261,7 @@ START_TEST (test_negative_response)
 END_TEST
 
 Suite* testSuite(void) {
-    Suite* s = suite_create("obd2");
+    Suite* s = suite_create("uds");
     TCase *tc_core = tcase_create("core");
     tcase_add_checked_fixture(tc_core, setup, NULL);
     tcase_add_test(tc_core, test_send_diag_request);

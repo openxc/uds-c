@@ -1,9 +1,11 @@
-OBD-II Support Library in C
-=============================
+Unified Diagnostic Services (UDS) Support Library in C
+======================================================
 
-This is a platform agnostic C library that implements the standard On Board
-Diagnostics system for vehicles. It currently supports OBD-II running over CAN
-(ISO 15765-4), which uses the ISO-TP (ISO 15765-2) protocol underneath.
+This is a platform agnostic C library that implements the Unified Diagnostics
+Services protocol for automotive electronics. UDS is documented in ISO 14229 and
+is the underpinning for the more well-known On-board Diagnostics (OBD) standard.
+The library currently supports UDS running over CAN (ISO 15765-4), which uses
+the ISO-TP (ISO 15765-2) protocol for message framing.
 
 This library doesn't assume anything about the source of your diagnostic message
 requests or underlying interface to the CAN bus. It uses dependency injection to

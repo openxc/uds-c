@@ -1,7 +1,7 @@
 #ifndef __EXTRAS_H__
 #define __EXTRAS_H__
 
-#include <obd2/obd2_types.h>
+#include <uds/uds_types.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,7 +64,7 @@ DiagnosticRequestHandle diagnostic_enumerate_pids(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticPidEnumerationReceived callback);
 
 // TODO
-float diagnostic_decode_obd2_pid(DiagnosticResponse* response);
+float diagnostic_decode_OBD2_pid(DiagnosticResponse* response);
 
 #ifdef __cplusplus
 }

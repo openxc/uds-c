@@ -1,7 +1,7 @@
-#ifndef __OBD2_H__
-#define __OBD2_H__
+#ifndef __UDS_H__
+#define __UDS_H__
 
-#include <obd2/obd2_types.h>
+#include <uds/uds_types.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -99,4 +99,4 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
 }
 #endif
 
-#endif // __OBD2_H__
+#endif // __UDS_H__
