@@ -83,6 +83,8 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         const uint16_t arbitration_id, const uint8_t data[],
         const uint8_t size);
 
+float diagnostic_payload_to_float(const DiagnosticResponse* response);
+
 /* Public: Render a DiagnosticResponse as a string into the given buffer.
  *
  * TODO implement this

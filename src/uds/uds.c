@@ -1,5 +1,6 @@
 #include <uds/uds.h>
 #include <bitfield/bitfield.h>
+#include <canutil/read.h>
 #include <string.h>
 #include <limits.h>
 #include <stddef.h>
@@ -240,4 +241,10 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         }
     }
     return response;
+}
+
+float diagnostic_payload_to_float(const DiagnosticResponse* response) {
+    return bitfield_parse_float(response->payload,
+            response->payload_length, 0,
+            response->payload_length * CHAR_BIT, 1.0, 0);
 }
