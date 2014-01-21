@@ -204,8 +204,6 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
             IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
                     &handle->isotp_receive_handles[i], arbitration_id, data, size);
 
-            // TODO as of now we're completing the handle as soon as one
-            // broadcast response is received....need to hang on for 100ms
             if(message.completed) {
                 if(message.size > 0) {
                     response.mode = message.payload[0];
@@ -237,6 +235,10 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                 if(handle->completed && handle->callback != NULL) {
                     handle->callback(&response);
                 }
+
+                // TODO as of now we're completing the handle as soon as one
+                // broadcast response is received....need to hang on for 100ms
+                break;
             }
         }
     }
