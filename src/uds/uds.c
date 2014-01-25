@@ -36,7 +36,8 @@ static void setup_receive_handle(DiagnosticRequestHandle* handle) {
         for(response_id = 0;
                 response_id < OBD2_FUNCTIONAL_RESPONSE_COUNT; ++response_id) {
             handle->isotp_receive_handles[response_id] = isotp_receive(
-                    &handle->isotp_shims, OBD2_FUNCTIONAL_RESPONSE_START + response_id,
+                    &handle->isotp_shims,
+                    OBD2_FUNCTIONAL_RESPONSE_START + response_id,
                     NULL);
         }
         handle->isotp_receive_handle_count = OBD2_FUNCTIONAL_RESPONSE_COUNT;
@@ -47,7 +48,6 @@ static void setup_receive_handle(DiagnosticRequestHandle* handle) {
                 NULL);
     }
 }
-
 
 DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticResponseReceived callback) {
@@ -137,7 +137,8 @@ static bool handle_negative_response(IsoTpMessage* message,
         }
 
         if(message->size > NEGATIVE_RESPONSE_NRC_INDEX) {
-            response->negative_response_code = message->payload[NEGATIVE_RESPONSE_NRC_INDEX];
+            response->negative_response_code =
+                    message->payload[NEGATIVE_RESPONSE_NRC_INDEX];
         }
 
         response->success = false;
@@ -202,7 +203,8 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         uint8_t i;
         for(i = 0; i < handle->isotp_receive_handle_count; ++i) {
             IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
-                    &handle->isotp_receive_handles[i], arbitration_id, data, size);
+                    &handle->isotp_receive_handles[i], arbitration_id, data,
+                    size);
 
             if(message.completed) {
                 if(message.size > 0) {
@@ -212,8 +214,8 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                                 response.mode, response.arbitration_id);
                         handle->success = true;
                         handle->completed = true;
-                    } else if(handle_positive_response(handle, &message, &response,
-                                shims)) {
+                    } else if(handle_positive_response(handle, &message,
+                                &response, shims)) {
                         shims->log("Received a positive mode %d response on arb ID 0x%x",
                                 response.mode, response.arbitration_id);
                         handle->success = true;
