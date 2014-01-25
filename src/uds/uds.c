@@ -225,9 +225,6 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                                 MAX(0, response.mode - MODE_RESPONSE_OFFSET),
                                 response.pid, handle->request.mode,
                                 handle->request.pid);
-                        // TODO just leave handles open until the user decides
-                        // to be done with it - keep a count of valid responses
-                        // received.
                     }
                 } else {
                     shims->log("Received an empty response on arb ID 0x%x",
@@ -238,8 +235,6 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                     handle->callback(&response);
                 }
 
-                // TODO as of now we're completing the handle as soon as one
-                // broadcast response is received....need to hang on for 100ms
                 break;
             }
         }
