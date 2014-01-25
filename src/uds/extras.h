@@ -63,8 +63,6 @@ bool diagnostic_clear_dtc(DiagnosticShims* shims);
 DiagnosticRequestHandle diagnostic_enumerate_pids(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticPidEnumerationReceived callback);
 
-// TODO
-float diagnostic_decode_OBD2_pid(DiagnosticResponse* response);
 
 #ifdef __cplusplus
 }

@@ -97,6 +97,8 @@ float diagnostic_payload_to_float(const DiagnosticResponse* response);
 // void diagnostic_response_to_string(const DiagnosticResponse* response,
         // char* destination, size_t destination_length);
 
+float diagnostic_decode_obd2_pid(const DiagnosticResponse* response);
+
 #ifdef __cplusplus
 }
 #endif
