@@ -49,6 +49,18 @@ static void setup_receive_handle(DiagnosticRequestHandle* handle) {
     }
 }
 
+static uint16_t autoset_pid_length(uint8_t mode, uint16_t pid,
+        uint8_t pid_length) {
+    if(pid_length == 0) {
+        if(pid > 0xffff || mode > 10) {
+            pid_length = 2;
+        } else {
+            pid_length = 1;
+        }
+    }
+    return pid_length;
+}
+
 DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticResponseReceived callback) {
     DiagnosticRequestHandle handle = {
@@ -60,7 +72,10 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
 
     uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE] = {0};
     payload[MODE_BYTE_INDEX] = request->mode;
-    if(request->pid_length > 0) {
+    if(request->has_pid) {
+        request->pid_length = autoset_pid_length(request->mode,
+                request->pid, request->pid_length);
+        handle.request.pid_length = request->pid_length;
         set_bitfield(request->pid, PID_BYTE_INDEX * CHAR_BIT,
                 request->pid_length * CHAR_BIT, payload, sizeof(payload));
     }
@@ -120,8 +135,8 @@ DiagnosticRequestHandle diagnostic_request_pid(DiagnosticShims* shims,
     DiagnosticRequest request = {
         arbitration_id: arbitration_id,
         mode: pid_request_type == DIAGNOSTIC_STANDARD_PID ? 0x1 : 0x22,
-        pid: pid,
-        pid_length: pid_request_type == DIAGNOSTIC_STANDARD_PID ? 1 : 2
+        has_pid: true,
+        pid: pid
     };
 
     return diagnostic_request(shims, &request, callback);
@@ -157,7 +172,7 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
         // if it matched
         response->mode = handle->request.mode;
         response->has_pid = false;
-        if(handle->request.pid_length > 0 && message->size > 1) {
+        if(handle->request.has_pid && message->size > 1) {
             response->has_pid = true;
             if(handle->request.pid_length == 2) {
                 response->pid = get_bitfield(message->payload, message->size,
@@ -175,7 +190,7 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
                     response->payload_length);
         }
 
-        if((handle->request.pid_length == 0 && !response->has_pid)
+        if((!handle->request.has_pid && !response->has_pid)
                 || response->pid == handle->request.pid) {
             response->success = true;
             response->completed = true;

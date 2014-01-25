@@ -33,9 +33,12 @@ typedef enum {
  *
  * arbitration_id - The arbitration ID to send the request.
  * mode - The OBD-II mode for the request.
- * pid - (optional) The PID to request, if the mode requires one.
+ * has_pid - (optional) If the requests uses a PID, this should be true.
+ * pid - (optional) The PID to request, if the mode requires one. has_pid must
+ *      be true.
  * pid_length - The length of the PID field, either 1 (standard) or 2 bytes
- *      (extended).
+ *      (extended). If 0, it will be set automatically based on the request
+ *      mode.
  * payload - (optional) The payload for the request, if the request requires
  *      one. If payload_length is 0 this field is ignored.
  * payload_length - The length of the payload, or 0 if no payload is used.
@@ -44,6 +47,7 @@ typedef enum {
 typedef struct {
     uint16_t arbitration_id;
     uint8_t mode;
+    bool has_pid;
     uint16_t pid;
     uint8_t pid_length;
     uint8_t payload[MAX_UDS_PAYLOAD_LENGTH];

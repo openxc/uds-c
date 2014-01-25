@@ -122,6 +122,31 @@ START_TEST (test_send_diag_request)
 }
 END_TEST
 
+START_TEST (test_autoset_pid_length)
+{
+    uint16_t arb_id = OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST;
+    diagnostic_request_pid(&SHIMS, DIAGNOSTIC_STANDARD_PID, arb_id, 0x2,
+            response_received_handler);
+
+    ck_assert_int_eq(last_can_frame_sent_arb_id, arb_id);
+    ck_assert_int_eq(last_can_payload_sent[1], 0x1);
+    ck_assert_int_eq(last_can_payload_sent[2], 0x2);
+    ck_assert_int_eq(last_can_payload_size, 3);
+
+    DiagnosticRequest request = {
+        arbitration_id: 0x100,
+        mode: 0x22,
+        has_pid: true,
+        pid: 2
+    };
+    diagnostic_request(&SHIMS, &request, response_received_handler);
+
+    ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
+    ck_assert_int_eq(last_can_payload_sent[1], request.mode);
+ck_assert_int_eq(last_can_payload_size, 4);
+}
+END_TEST
+
 START_TEST (test_request_pid_standard)
 {
     uint16_t arb_id = OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST;
@@ -282,6 +307,7 @@ Suite* testSuite(void) {
     tcase_add_test(tc_core, test_send_functional_request);
     tcase_add_test(tc_core, test_send_diag_request_with_payload);
     tcase_add_test(tc_core, test_receive_wrong_arb_id);
+    tcase_add_test(tc_core, test_autoset_pid_length);
     tcase_add_test(tc_core, test_request_pid_standard);
     tcase_add_test(tc_core, test_request_pid_enhanced);
     tcase_add_test(tc_core, test_wrong_mode_response);
