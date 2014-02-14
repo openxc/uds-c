@@ -225,13 +225,13 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                 if(message.size > 0) {
                     response.mode = message.payload[0];
                     if(handle_negative_response(&message, &response, shims)) {
-                        shims->log("Received a negative response to mode %d on arb ID 0x%x",
+                        shims->log("Received a negative response to mode 0x%x on arb ID 0x%x",
                                 response.mode, response.arbitration_id);
                         handle->success = true;
                         handle->completed = true;
                     } else if(handle_positive_response(handle, &message,
                                 &response, shims)) {
-                        shims->log("Received a positive mode %d response on arb ID 0x%x",
+                        shims->log("Received a positive mode 0x%x response on arb ID 0x%x",
                                 response.mode, response.arbitration_id);
                         handle->success = true;
                         handle->completed = true;
