@@ -338,7 +338,7 @@ START_TEST (test_negative_response)
 }
 END_TEST
 
-START_TEST (test_payload_to_float)
+START_TEST (test_payload_to_integer)
 {
     uint16_t arb_id = OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
@@ -348,7 +348,7 @@ START_TEST (test_payload_to_float)
     const uint8_t can_data[] = {0x4, 0x1 + 0x40, 0x2, 0x45, 0x12};
     DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8,
             can_data, sizeof(can_data));
-    ck_assert_int_eq(diagnostic_payload_to_float(&response), 0x4512);
+    ck_assert_int_eq(diagnostic_payload_to_integer(&response), 0x4512);
 }
 END_TEST
 
@@ -371,7 +371,7 @@ Suite* testSuite(void) {
     tcase_add_test(tc_core, test_missing_pid);
     tcase_add_test(tc_core, test_wrong_pid_then_right_completes);
     tcase_add_test(tc_core, test_negative_response);
-    tcase_add_test(tc_core, test_payload_to_float);
+    tcase_add_test(tc_core, test_payload_to_integer);
 
     // TODO these are future work:
     // TODO test request MIL

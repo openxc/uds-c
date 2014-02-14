@@ -83,7 +83,11 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         const uint16_t arbitration_id, const uint8_t data[],
         const uint8_t size);
 
-float diagnostic_payload_to_float(const DiagnosticResponse* response);
+/* Public: Parse the entier payload of the reponse as a single integer.
+ *
+ * response - the received DiagnosticResponse.
+ */
+int diagnostic_payload_to_integer(const DiagnosticResponse* response);
 
 /* Public: Render a DiagnosticResponse as a string into the given buffer.
  *
@@ -97,7 +101,16 @@ float diagnostic_payload_to_float(const DiagnosticResponse* response);
 // void diagnostic_response_to_string(const DiagnosticResponse* response,
         // char* destination, size_t destination_length);
 
-float diagnostic_decode_obd2_pid(const DiagnosticResponse* response);
+/* Public: For many OBD-II PIDs with a numerical result, translate a diagnostic
+ * response payload into a meaningful number using the standard formulas.
+ *
+ * Functions pulled from http://en.wikipedia.org/wiki/OBD-II_PIDs#Mode_01
+ *
+ * Returns the translated value or 0 if the PID is not in the OBD-II standard or
+ * does not use a numerical value (e.g. VIN).
+ */
+float diagnostic_decode_obd2_pid(const DiagnosticResponse* response,
+                int parsed_payload);
 
 #ifdef __cplusplus
 }

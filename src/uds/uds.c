@@ -258,17 +258,13 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
     return response;
 }
 
-float diagnostic_payload_to_float(const DiagnosticResponse* response) {
-    return bitfield_parse_float(response->payload,
-            response->payload_length, 0,
-            response->payload_length * CHAR_BIT, 1.0, 0);
+int diagnostic_payload_to_integer(const DiagnosticResponse* response) {
+    return get_bitfield(response->payload, response->payload_length, 0,
+            response->payload_length * CHAR_BIT);
 }
 
-/* Public:
- *
- * Functions pulled from http://en.wikipedia.org/wiki/OBD-II_PIDs#Mode_01
- */
-float diagnostic_decode_obd2_pid(const DiagnosticResponse* response) {
+float diagnostic_decode_obd2_pid(const DiagnosticResponse* response,
+        int parsed_payload) {
     // handles on the single number values, not the bit encoded ones
     switch(response->pid) {
         case 0xa:

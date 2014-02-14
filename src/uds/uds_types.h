@@ -133,14 +133,12 @@ typedef enum {
     OBD2_MODE_ENHANCED_DIAGNOSTIC_REQUEST = 0x22
 } DiagnosticMode;
 
-/* Public the signature for an optional function to be called when a diagnostic
+/* Public: The signature for an optional function to be called when a diagnostic
  * request is complete, and a response is received or there is a fatal error.
  *
  * response - the completed DiagnosticResponse.
  */
 typedef void (*DiagnosticResponseReceived)(const DiagnosticResponse* response);
-
-typedef float (*DiagnosticResponseDecoder)(const DiagnosticResponse* response);
 
 /* Public: A handle for initiating and continuing a single diagnostic request.
  *
