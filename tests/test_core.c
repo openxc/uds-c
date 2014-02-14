@@ -40,7 +40,8 @@ START_TEST (test_send_diag_request_with_payload)
         arbitration_id: 0x100,
         mode: OBD2_MODE_POWERTRAIN_DIAGNOSTIC_REQUEST,
         payload: {0x12, 0x34},
-        payload_length: 2
+        payload_length: 2,
+        no_frame_padding: true
     };
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
             response_received_handler);
@@ -60,7 +61,8 @@ START_TEST (test_send_functional_request)
 {
     DiagnosticRequest request = {
         arbitration_id: OBD2_FUNCTIONAL_BROADCAST_ID,
-        mode: OBD2_MODE_EMISSIONS_DTC_REQUEST
+        mode: OBD2_MODE_EMISSIONS_DTC_REQUEST,
+        no_frame_padding: true
     };
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
             response_received_handler);
@@ -91,11 +93,59 @@ START_TEST (test_send_functional_request)
 }
 END_TEST
 
-START_TEST (test_send_diag_request)
+START_TEST (test_sent_message_no_padding)
+{
+    DiagnosticRequest request = {
+        arbitration_id: 0x100,
+        mode: OBD2_MODE_EMISSIONS_DTC_REQUEST,
+        no_frame_padding: true
+    };
+    DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
+            response_received_handler);
+
+    fail_if(handle.completed);
+    ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
+    ck_assert_int_eq(last_can_payload_size, 2);
+}
+END_TEST
+
+START_TEST (test_sent_message_is_padded_by_default)
 {
     DiagnosticRequest request = {
         arbitration_id: 0x100,
         mode: OBD2_MODE_EMISSIONS_DTC_REQUEST
+    };
+    DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
+            response_received_handler);
+
+    fail_if(handle.completed);
+    ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
+    ck_assert_int_eq(last_can_payload_size, 8);
+}
+END_TEST
+
+START_TEST (test_sent_message_is_padded)
+{
+    DiagnosticRequest request = {
+        arbitration_id: 0x100,
+        mode: OBD2_MODE_EMISSIONS_DTC_REQUEST,
+        no_frame_padding: false
+    };
+    DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
+            response_received_handler);
+
+    fail_if(handle.completed);
+    ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
+    ck_assert_int_eq(last_can_payload_size, 8);
+}
+END_TEST
+
+START_TEST (test_send_diag_request)
+{
+    DiagnosticRequest request = {
+        arbitration_id: 0x100,
+        mode: OBD2_MODE_EMISSIONS_DTC_REQUEST,
+        no_frame_padding: true
     };
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
             response_received_handler);
@@ -131,19 +181,22 @@ START_TEST (test_autoset_pid_length)
     ck_assert_int_eq(last_can_frame_sent_arb_id, arb_id);
     ck_assert_int_eq(last_can_payload_sent[1], 0x1);
     ck_assert_int_eq(last_can_payload_sent[2], 0x2);
-    ck_assert_int_eq(last_can_payload_size, 3);
+    // padding is on for the diagnostic_request_pid helper function - if you
+    // need to turn it off, use the more manual diagnostic_request(...)
+    ck_assert_int_eq(last_can_payload_size, 8);
 
     DiagnosticRequest request = {
         arbitration_id: 0x100,
         mode: 0x22,
         has_pid: true,
-        pid: 2
+        pid: 2,
+        no_frame_padding: true
     };
     diagnostic_request(&SHIMS, &request, response_received_handler);
 
     ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
     ck_assert_int_eq(last_can_payload_sent[1], request.mode);
-ck_assert_int_eq(last_can_payload_size, 4);
+    ck_assert_int_eq(last_can_payload_size, 4);
 }
 END_TEST
 
@@ -303,6 +356,9 @@ Suite* testSuite(void) {
     Suite* s = suite_create("uds");
     TCase *tc_core = tcase_create("core");
     tcase_add_checked_fixture(tc_core, setup, NULL);
+    tcase_add_test(tc_core, test_sent_message_no_padding);
+    tcase_add_test(tc_core, test_sent_message_is_padded);
+    tcase_add_test(tc_core, test_sent_message_is_padded_by_default);
     tcase_add_test(tc_core, test_send_diag_request);
     tcase_add_test(tc_core, test_send_functional_request);
     tcase_add_test(tc_core, test_send_diag_request_with_payload);

@@ -87,6 +87,7 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
     handle.isotp_shims = isotp_init_shims(shims->log,
             shims->send_can_message,
             shims->set_timer);
+    handle.isotp_shims.frame_padding = !request->no_frame_padding;
 
     handle.isotp_send_handle = isotp_send(&handle.isotp_shims,
             request->arbitration_id, payload,
@@ -121,7 +122,7 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
     // that are just called continuously from the main loop. it's a waste of a
     // few cpu cycles but it may be more  natural than callbacks.
     //
-    // what woudl a timer callback look like...it would need to pass the handle
+    // what would a timer callback look like...it would need to pass the handle
     // and that's all. seems like a context void* would be able to capture all
     // of the information but arg, memory allocation. look at how it's done in
     // the other library again

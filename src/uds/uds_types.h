@@ -42,6 +42,10 @@ typedef enum {
  * payload - (optional) The payload for the request, if the request requires
  *      one. If payload_length is 0 this field is ignored.
  * payload_length - The length of the payload, or 0 if no payload is used.
+ * no_frame_padding - false if sent CAN payloads should *not* be padded out to a
+ *      full 8 byte CAN frame. Many ECUs require this, but others require the
+ *      size of the CAN message to only be the actual data. By default padding
+ *      is enabled (so this struct value can default to 0).
  * type - the type of the request (TODO unused)
  */
 typedef struct {
@@ -52,6 +56,7 @@ typedef struct {
     uint8_t pid_length;
     uint8_t payload[MAX_UDS_PAYLOAD_LENGTH];
     uint8_t payload_length;
+    bool no_frame_padding;
     DiagnosticRequestType type;
 } DiagnosticRequest;
 
