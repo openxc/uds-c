@@ -91,15 +91,23 @@ int diagnostic_payload_to_integer(const DiagnosticResponse* response);
 
 /* Public: Render a DiagnosticResponse as a string into the given buffer.
  *
- * TODO implement this
- *
- * message - the response to convert to a string, for debug logging.
+ * response - the response to convert to a string, for debug logging.
  * destination - the target string buffer.
  * destination_length - the size of the destination buffer, i.e. the max size
  *      for the rendered string.
  */
-// void diagnostic_response_to_string(const DiagnosticResponse* response,
-        // char* destination, size_t destination_length);
+void diagnostic_response_to_string(const DiagnosticResponse* response,
+        char* destination, size_t destination_length);
+
+/* Public: Render a DiagnosticRequest as a string into the given buffer.
+ *
+ * request - the request to convert to a string, for debug logging.
+ * destination - the target string buffer.
+ * destination_length - the size of the destination buffer, i.e. the max size
+ *      for the rendered string.
+ */
+void diagnostic_request_to_string(const DiagnosticRequest* request,
+        char* destination, size_t destination_length);
 
 /* Public: For many OBD-II PIDs with a numerical result, translate a diagnostic
  * response payload into a meaningful number using the standard formulas.

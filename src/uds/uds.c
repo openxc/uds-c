@@ -94,27 +94,9 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
             1 + request->payload_length + request->pid_length,
             NULL);
     if(shims->log != NULL) {
-        char message[128] = {0};
-        int bytes_used = snprintf(message, sizeof(message),
-                "Sending diagnostic request: arb_id: 0x%02x, mode: 0x%x, pid: 0x%x, ",
-                request->arbitration_id,
-                request->mode,
-                request->pid);
-        int remaining_space = sizeof(message) - bytes_used;
-        if(request->payload_length > 0) {
-            snprintf(message + bytes_used, remaining_space,
-                    "payload: 0x%02x%02x%02x%02x%02x%02x%02x",
-                    request->payload[0],
-                    request->payload[1],
-                    request->payload[2],
-                    request->payload[3],
-                    request->payload[4],
-                    request->payload[5],
-                    request->payload[6]);
-        } else {
-            snprintf(message + bytes_used, remaining_space, "no payload");
-        }
-        shims->log(message);
+        char request_string[128] = {0};
+        diagnostic_request_to_string(request, request_string, sizeof(request_string));
+        shims->log("Sending diagnostic request: %s", request_string);
     }
 
     setup_receive_handle(&handle);
@@ -235,25 +217,39 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                 if(message.size > 0) {
                     response.mode = message.payload[0];
                     if(handle_negative_response(&message, &response, shims)) {
-                        shims->log("Received a negative response to mode 0x%x on arb ID 0x%x",
-                                response.mode, response.arbitration_id);
+                        if(shims->log != NULL) {
+                            char response_string[128] = {0};
+                            diagnostic_response_to_string(&response, response_string, sizeof(response_string));
+                            shims->log("Received a negative response: %s", response_string);
+                        }
+
                         handle->success = true;
                         handle->completed = true;
                     } else if(handle_positive_response(handle, &message,
                                 &response, shims)) {
-                        shims->log("Received a positive mode 0x%x response on arb ID 0x%x",
-                                response.mode, response.arbitration_id);
+                        if(shims->log != NULL) {
+                            char response_string[128] = {0};
+                            diagnostic_response_to_string(&response, response_string, sizeof(response_string));
+                            shims->log("Received a positive response: %s", response_string);
+                        }
+
                         handle->success = true;
                         handle->completed = true;
                     } else {
-                        shims->log("Response was for a mode 0x%x request (pid 0x%x), not our mode 0x%x request (pid 0x%x)",
-                                MAX(0, response.mode - MODE_RESPONSE_OFFSET),
-                                response.pid, handle->request.mode,
-                                handle->request.pid);
+                        if(shims->log != NULL) {
+                            char response_string[128] = {0};
+                            diagnostic_response_to_string(&response, response_string, sizeof(response_string));
+                            shims->log("Expected a mode 0x%x response to pid 0x%x but received: %s",
+                                    MAX(0, response.mode - MODE_RESPONSE_OFFSET),
+                                    response.pid,
+                                    response_string);
+                        }
                     }
                 } else {
-                    shims->log("Received an empty response on arb ID 0x%x",
-                            response.arbitration_id);
+                    if(shims->log != NULL) {
+                        shims->log("Received an empty response on arb ID 0x%x",
+                                response.arbitration_id);
+                    }
                 }
 
                 if(handle->completed && handle->callback != NULL) {
@@ -305,3 +301,50 @@ float diagnostic_decode_obd2_pid(const DiagnosticResponse* response,
             return 0;
     }
 }
+
+void diagnostic_response_to_string(const DiagnosticResponse* response,
+        char* destination, size_t destination_length) {
+    int bytes_used = snprintf(destination, destination_length,
+            "arb_id: 0x%02x, mode: 0x%x, pid: 0x%x, ",
+            response->arbitration_id,
+            response->mode,
+            response->pid);
+    int remaining_space = destination_length - bytes_used;
+    if(response->payload_length > 0) {
+        snprintf(destination + bytes_used, remaining_space,
+                "payload: 0x%02x%02x%02x%02x%02x%02x%02x",
+                response->payload[0],
+                response->payload[1],
+                response->payload[2],
+                response->payload[3],
+                response->payload[4],
+                response->payload[5],
+                response->payload[6]);
+    } else {
+        snprintf(destination + bytes_used, remaining_space, "no payload");
+    }
+}
+
+void diagnostic_request_to_string(const DiagnosticRequest* request,
+        char* destination, size_t destination_length) {
+    int bytes_used = snprintf(destination, destination_length,
+            "arb_id: 0x%02x, mode: 0x%x, pid: 0x%x, ",
+            request->arbitration_id,
+            request->mode,
+            request->pid);
+    int remaining_space = destination_length - bytes_used;
+    if(request->payload_length > 0) {
+        snprintf(destination + bytes_used, remaining_space,
+                "payload: 0x%02x%02x%02x%02x%02x%02x%02x",
+                request->payload[0],
+                request->payload[1],
+                request->payload[2],
+                request->payload[3],
+                request->payload[4],
+                request->payload[5],
+                request->payload[6]);
+    } else {
+        snprintf(destination + bytes_used, remaining_space, "no payload");
+    }
+}
+
