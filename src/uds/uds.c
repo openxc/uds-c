@@ -342,10 +342,17 @@ void diagnostic_response_to_string(const DiagnosticResponse* response,
 void diagnostic_request_to_string(const DiagnosticRequest* request,
         char* destination, size_t destination_length) {
     int bytes_used = snprintf(destination, destination_length,
-            "arb_id: 0x%02x, mode: 0x%x, pid: 0x%x, ",
+            "arb_id: 0x%02x, mode: 0x%x, ",
             request->arbitration_id,
-            request->mode,
-            request->pid);
+            request->mode);
+
+    if(request->has_pid) {
+        bytes_used += snprintf(destination + bytes_used,
+                destination_length - bytes_used,
+                "pid: 0x%x, ",
+                request->pid);
+    }
+
     int remaining_space = destination_length - bytes_used;
     if(request->payload_length > 0) {
         snprintf(destination + bytes_used, remaining_space,
