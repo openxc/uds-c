@@ -94,18 +94,27 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
             1 + request->payload_length + request->pid_length,
             NULL);
     if(shims->log != NULL) {
-        shims->log("Sending diagnostic request: arb_id: 0x%02x, mode: 0x%x, pid: 0x%x, payload: 0x%02x%02x%02x%02x%02x%02x%02x, size: %d\r\n",
+        char message[128] = {0};
+        int bytes_used = snprintf(message, sizeof(message),
+                "Sending diagnostic request: arb_id: 0x%02x, mode: 0x%x, pid: 0x%x, ",
                 request->arbitration_id,
                 request->mode,
-                request->pid,
-                request->payload[0],
-                request->payload[1],
-                request->payload[2],
-                request->payload[3],
-                request->payload[4],
-                request->payload[5],
-                request->payload[6],
-                request->payload_length);
+                request->pid);
+        int remaining_space = sizeof(message) - bytes_used;
+        if(request->payload_length > 0) {
+            snprintf(message + bytes_used, remaining_space,
+                    "payload: 0x%02x%02x%02x%02x%02x%02x%02x",
+                    request->payload[0],
+                    request->payload[1],
+                    request->payload[2],
+                    request->payload[3],
+                    request->payload[4],
+                    request->payload[5],
+                    request->payload[6]);
+        } else {
+            snprintf(message + bytes_used, remaining_space, "no payload");
+        }
+        shims->log(message);
     }
 
     setup_receive_handle(&handle);
