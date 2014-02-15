@@ -305,13 +305,26 @@ float diagnostic_decode_obd2_pid(const DiagnosticResponse* response,
 void diagnostic_response_to_string(const DiagnosticResponse* response,
         char* destination, size_t destination_length) {
     int bytes_used = snprintf(destination, destination_length,
-            "arb_id: 0x%02x, mode: 0x%x, pid: 0x%x, ",
+            "arb_id: 0x%02x, mode: 0x%x, ",
             response->arbitration_id,
-            response->mode,
-            response->pid);
-    int remaining_space = destination_length - bytes_used;
+            response->mode);
+
+    if(response->has_pid) {
+        bytes_used += snprintf(destination + bytes_used,
+                destination_length - bytes_used,
+                "pid: 0x%x, ",
+                response->pid);
+    }
+
+    if(!response->success) {
+        bytes_used += snprintf(destination + bytes_used,
+                destination_length - bytes_used,
+                "negative response code: 0x%x, ",
+                response->negative_response_code);
+    }
+
     if(response->payload_length > 0) {
-        snprintf(destination + bytes_used, remaining_space,
+        snprintf(destination + bytes_used, destination_length - bytes_used,
                 "payload: 0x%02x%02x%02x%02x%02x%02x%02x",
                 response->payload[0],
                 response->payload[1],
@@ -321,7 +334,8 @@ void diagnostic_response_to_string(const DiagnosticResponse* response,
                 response->payload[5],
                 response->payload[6]);
     } else {
-        snprintf(destination + bytes_used, remaining_space, "no payload");
+        snprintf(destination + bytes_used, destination_length - bytes_used,
+                "no payload");
     }
 }
 
