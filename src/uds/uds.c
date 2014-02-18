@@ -319,7 +319,7 @@ void diagnostic_response_to_string(const DiagnosticResponse* response,
     if(!response->success) {
         bytes_used += snprintf(destination + bytes_used,
                 destination_length - bytes_used,
-                "negative response code: 0x%x, ",
+                "nrc: 0x%x, ",
                 response->negative_response_code);
     }
 
