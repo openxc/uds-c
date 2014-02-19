@@ -117,8 +117,7 @@ void diagnostic_request_to_string(const DiagnosticRequest* request,
  * Returns the translated value or 0 if the PID is not in the OBD-II standard or
  * does not use a numerical value (e.g. VIN).
  */
-float diagnostic_decode_obd2_pid(const DiagnosticResponse* response,
-                int parsed_payload);
+float diagnostic_decode_obd2_pid(const DiagnosticResponse* response);
 
 #ifdef __cplusplus
 }

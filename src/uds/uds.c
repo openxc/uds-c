@@ -268,8 +268,7 @@ int diagnostic_payload_to_integer(const DiagnosticResponse* response) {
             response->payload_length * CHAR_BIT);
 }
 
-float diagnostic_decode_obd2_pid(const DiagnosticResponse* response,
-        int parsed_payload) {
+float diagnostic_decode_obd2_pid(const DiagnosticResponse* response) {
     // handles on the single number values, not the bit encoded ones
     switch(response->pid) {
         case 0xa:
