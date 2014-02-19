@@ -175,17 +175,17 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
 
         }
 
-        uint8_t payload_index = 1 + handle->request.pid_length;
-        response->payload_length = MAX(0, message->size - payload_index);
-        if(response->payload_length > 0) {
-            memcpy(response->payload, &message->payload[payload_index],
-                    response->payload_length);
-        }
-
         if((!handle->request.has_pid && !response->has_pid)
                 || response->pid == handle->request.pid) {
             response->success = true;
             response->completed = true;
+
+            uint8_t payload_index = 1 + handle->request.pid_length;
+            response->payload_length = MAX(0, message->size - payload_index);
+            if(response->payload_length > 0) {
+                memcpy(response->payload, &message->payload[payload_index],
+                        response->payload_length);
+            }
         } else {
             response_was_positive = false;
         }
@@ -216,34 +216,16 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
             if(message.completed) {
                 if(message.size > 0) {
                     response.mode = message.payload[0];
-                    if(handle_negative_response(&message, &response, shims)) {
+                    if(handle_negative_response(&message, &response, shims) ||
+                            handle_positive_response(handle, &message, &response, shims)) {
                         if(shims->log != NULL) {
                             char response_string[128] = {0};
                             diagnostic_response_to_string(&response, response_string, sizeof(response_string));
-                            shims->log("Received a negative response: %s", response_string);
+                            shims->log("Diagnostic response received: %s", response_string);
                         }
 
                         handle->success = true;
                         handle->completed = true;
-                    } else if(handle_positive_response(handle, &message,
-                                &response, shims)) {
-                        if(shims->log != NULL) {
-                            char response_string[128] = {0};
-                            diagnostic_response_to_string(&response, response_string, sizeof(response_string));
-                            shims->log("Received a positive response: %s", response_string);
-                        }
-
-                        handle->success = true;
-                        handle->completed = true;
-                    } else {
-                        if(shims->log != NULL) {
-                            char response_string[128] = {0};
-                            diagnostic_response_to_string(&response, response_string, sizeof(response_string));
-                            shims->log("Expected a mode 0x%x response to pid 0x%x but received: %s",
-                                    MAX(0, response.mode - MODE_RESPONSE_OFFSET),
-                                    response.pid,
-                                    response_string);
-                        }
                     }
                 } else {
                     if(shims->log != NULL) {
