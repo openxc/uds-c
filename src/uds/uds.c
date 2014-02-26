@@ -61,7 +61,45 @@ static uint16_t autoset_pid_length(uint8_t mode, uint16_t pid,
     return pid_length;
 }
 
-DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
+static void send_diagnostic_request(DiagnosticShims* shims,
+        DiagnosticRequestHandle* handle) {
+    uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE] = {0};
+    payload[MODE_BYTE_INDEX] = handle->request.mode;
+    if(handle->request.has_pid) {
+        handle->request.pid_length = autoset_pid_length(handle->request.mode,
+                handle->request.pid, handle->request.pid_length);
+        handle->request.pid_length = handle->request.pid_length;
+        set_bitfield(handle->request.pid, PID_BYTE_INDEX * CHAR_BIT,
+                handle->request.pid_length * CHAR_BIT, payload,
+                sizeof(payload));
+    }
+
+    if(handle->request.payload_length > 0) {
+        memcpy(&payload[PID_BYTE_INDEX + handle->request.pid_length],
+                handle->request.payload, handle->request.payload_length);
+    }
+
+    handle->isotp_send_handle = isotp_send(&handle->isotp_shims,
+            handle->request.arbitration_id, payload,
+            1 + handle->request.payload_length + handle->request.pid_length,
+            NULL);
+    if(shims->log != NULL) {
+        char request_string[128] = {0};
+        diagnostic_request_to_string(&handle->request, request_string,
+                sizeof(request_string));
+        shims->log("Sending diagnostic request: %s", request_string);
+    }
+}
+
+void start_diagnostic_request(DiagnosticShims* shims,
+        DiagnosticRequestHandle* handle) {
+    handle->success = false;
+    handle->completed = false;
+    send_diagnostic_request(shims, handle);
+    setup_receive_handle(handle);
+}
+
+DiagnosticRequestHandle generate_diagnostic_request(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticResponseReceived callback) {
     DiagnosticRequestHandle handle = {
         request: *request,
@@ -70,37 +108,12 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
         completed: false
     };
 
-    uint8_t payload[MAX_DIAGNOSTIC_PAYLOAD_SIZE] = {0};
-    payload[MODE_BYTE_INDEX] = request->mode;
-    if(request->has_pid) {
-        request->pid_length = autoset_pid_length(request->mode,
-                request->pid, request->pid_length);
-        handle.request.pid_length = request->pid_length;
-        set_bitfield(request->pid, PID_BYTE_INDEX * CHAR_BIT,
-                request->pid_length * CHAR_BIT, payload, sizeof(payload));
-    }
-    if(request->payload_length > 0) {
-        memcpy(&payload[PID_BYTE_INDEX + request->pid_length],
-                request->payload, request->payload_length);
-    }
-
     handle.isotp_shims = isotp_init_shims(shims->log,
             shims->send_can_message,
             shims->set_timer);
     handle.isotp_shims.frame_padding = !request->no_frame_padding;
 
-    handle.isotp_send_handle = isotp_send(&handle.isotp_shims,
-            request->arbitration_id, payload,
-            1 + request->payload_length + request->pid_length,
-            NULL);
-    if(shims->log != NULL) {
-        char request_string[128] = {0};
-        diagnostic_request_to_string(request, request_string, sizeof(request_string));
-        shims->log("Sending diagnostic request: %s", request_string);
-    }
-
-    setup_receive_handle(&handle);
-
+    return handle;
     // TODO notes on multi frame:
     // TODO what are the timers for exactly?
     //
@@ -118,6 +131,13 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
     // of the information but arg, memory allocation. look at how it's done in
     // the other library again
     //
+}
+
+DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
+        DiagnosticRequest* request, DiagnosticResponseReceived callback) {
+    DiagnosticRequestHandle handle = generate_diagnostic_request(
+            shims, request, callback);
+    start_diagnostic_request(shims, &handle);
     return handle;
 }
 
@@ -217,11 +237,14 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                 if(message.size > 0) {
                     response.mode = message.payload[0];
                     if(handle_negative_response(&message, &response, shims) ||
-                            handle_positive_response(handle, &message, &response, shims)) {
+                            handle_positive_response(handle, &message,
+                                &response, shims)) {
                         if(shims->log != NULL) {
                             char response_string[128] = {0};
-                            diagnostic_response_to_string(&response, response_string, sizeof(response_string));
-                            shims->log("Diagnostic response received: %s", response_string);
+                            diagnostic_response_to_string(&response,
+                                    response_string, sizeof(response_string));
+                            shims->log("Diagnostic response received: %s",
+                                    response_string);
                         }
 
                         handle->success = true;

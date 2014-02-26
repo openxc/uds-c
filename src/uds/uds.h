@@ -26,8 +26,8 @@ DiagnosticShims diagnostic_init_shims(LogShim log,
         SendCanMessageShim send_can_message,
         SetTimerShim set_timer);
 
-/* Public: Initiate a diagnostic request and return a handle, ready to completly
- * send the request and process the response via
+/* Public: Generate a new diagnostic request, send the first CAN message frame
+ * and set up the handle required to process the response via
  * diagnostic_receive_can_frame(...).
  *
  * shims -  Low-level shims required to send CAN messages, etc.
@@ -38,10 +38,36 @@ DiagnosticShims diagnostic_init_shims(LogShim log,
  * Returns a handle to be used with diagnostic_receive_can_frame to complete
  * sending the request and receive the response. The 'completed' field in the
  * returned DiagnosticRequestHandle will be true when the message is completely
- * sent.
+ * sent. The first frame of the message will already be sent.
  */
 DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
         DiagnosticRequest* request, DiagnosticResponseReceived callback);
+
+/* Public: Generate the handle for a new diagnostic request, but do not send any
+ * data to CAN yet - you must call start_diagnostic_request(...) on the handle
+ * returned from this function actually kick off the request.
+ *
+ * shims -  Low-level shims required to send CAN messages, etc.
+ * request -
+ * callback - an optional function to be called when the response is receved
+ *      (use NULL if no callback is required).
+ *
+ * Returns a handle to be used with start_diagnostic_request and then
+ * diagnostic_receive_can_frame to complete sending the request and receive the
+ * response. The 'completed' field in the returned DiagnosticRequestHandle will
+ * be true when the message is completely sent.
+ */
+DiagnosticRequestHandle generate_diagnostic_request(DiagnosticShims* shims,
+        DiagnosticRequest* request, DiagnosticResponseReceived callback);
+
+/* Public: Send the first frame of the request to CAN for the handle, generated
+ * by generate_diagnostic_request.
+ *
+ * You can also call this method to re-do the request for a handle that has
+ * already completed.
+ */
+void start_diagnostic_request(DiagnosticShims* shims,
+                DiagnosticRequestHandle* handle);
 
 /* Public: Request a PID from the given arbitration ID, determining the mode
  * automatically based on the PID type.

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+extern bool can_frame_was_sent;
 extern void setup();
 extern bool last_response_was_received;
 extern DiagnosticResponse last_response_received;
@@ -77,8 +78,8 @@ START_TEST (test_send_functional_request)
     for(uint16_t filter = OBD2_FUNCTIONAL_RESPONSE_START; filter <
             OBD2_FUNCTIONAL_RESPONSE_START + OBD2_FUNCTIONAL_RESPONSE_COUNT;
             filter++) {
-        DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS, &handle,
-                filter, can_data, sizeof(can_data));
+        DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS,
+                &handle, filter, can_data, sizeof(can_data));
         fail_unless(response.success);
         fail_unless(response.completed);
         fail_unless(handle.completed);
@@ -151,6 +152,7 @@ START_TEST (test_send_diag_request)
             response_received_handler);
 
     fail_if(handle.completed);
+    fail_unless(can_frame_was_sent);
     ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
     ck_assert_int_eq(last_can_payload_sent[1], request.mode);
     ck_assert_int_eq(last_can_payload_size, 2);
@@ -169,6 +171,57 @@ START_TEST (test_send_diag_request)
         fail_if(last_response_received.has_pid);
     ck_assert_int_eq(last_response_received.payload_length, 1);
     ck_assert_int_eq(last_response_received.payload[0], can_data[2]);
+}
+END_TEST
+
+START_TEST (test_generate_then_send_request)
+{
+    DiagnosticRequest request = {
+        arbitration_id: 0x100,
+        mode: OBD2_MODE_EMISSIONS_DTC_REQUEST,
+        no_frame_padding: true
+    };
+    DiagnosticRequestHandle handle = generate_diagnostic_request(&SHIMS,
+            &request, response_received_handler);
+
+    fail_if(handle.completed);
+    fail_if(can_frame_was_sent);
+
+    start_diagnostic_request(&SHIMS, &handle);
+    fail_unless(can_frame_was_sent);
+    ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
+    ck_assert_int_eq(last_can_payload_sent[1], request.mode);
+    ck_assert_int_eq(last_can_payload_size, 2);
+
+    fail_if(last_response_was_received);
+    const uint8_t can_data[] = {0x2, request.mode + 0x40, 0x23};
+    DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS, &handle,
+            request.arbitration_id + 0x8, can_data, sizeof(can_data));
+    fail_unless(response.success);
+    fail_unless(response.completed);
+    fail_unless(handle.completed);
+    ck_assert(last_response_received.success);
+    ck_assert_int_eq(last_response_received.arbitration_id,
+            request.arbitration_id + 0x8);
+    ck_assert_int_eq(last_response_received.mode, request.mode);
+        fail_if(last_response_received.has_pid);
+    ck_assert_int_eq(last_response_received.payload_length, 1);
+    ck_assert_int_eq(last_response_received.payload[0], can_data[2]);
+}
+END_TEST
+
+START_TEST (test_generate_diag_request)
+{
+    DiagnosticRequest request = {
+        arbitration_id: 0x100,
+        mode: OBD2_MODE_EMISSIONS_DTC_REQUEST,
+        no_frame_padding: true
+    };
+    DiagnosticRequestHandle handle = generate_diagnostic_request(&SHIMS,
+            &request, response_received_handler);
+
+    fail_if(handle.completed);
+    fail_if(can_frame_was_sent);
 }
 END_TEST
 
@@ -321,7 +374,8 @@ START_TEST (test_negative_response)
     };
     DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
             response_received_handler);
-    const uint8_t can_data[] = {0x3, 0x7f, request.mode, NRC_SERVICE_NOT_SUPPORTED};
+    const uint8_t can_data[] = {0x3, 0x7f, request.mode,
+        NRC_SERVICE_NOT_SUPPORTED};
     DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS, &handle,
             request.arbitration_id + 0x8, can_data, sizeof(can_data));
     fail_unless(response.completed);
@@ -333,7 +387,8 @@ START_TEST (test_negative_response)
             request.arbitration_id + 0x8);
     ck_assert_int_eq(last_response_received.mode, request.mode);
     ck_assert_int_eq(last_response_received.pid, 0);
-    ck_assert_int_eq(last_response_received.negative_response_code, NRC_SERVICE_NOT_SUPPORTED);
+    ck_assert_int_eq(last_response_received.negative_response_code,
+            NRC_SERVICE_NOT_SUPPORTED);
     ck_assert_int_eq(last_response_received.payload_length, 0);
 }
 END_TEST
@@ -346,8 +401,8 @@ START_TEST (test_payload_to_integer)
 
     fail_if(last_response_was_received);
     const uint8_t can_data[] = {0x4, 0x1 + 0x40, 0x2, 0x45, 0x12};
-    DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8,
-            can_data, sizeof(can_data));
+    DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS, &handle,
+            arb_id + 0x8, can_data, sizeof(can_data));
     ck_assert_int_eq(diagnostic_payload_to_integer(&response), 0x4512);
 }
 END_TEST
@@ -359,6 +414,8 @@ Suite* testSuite(void) {
     tcase_add_test(tc_core, test_sent_message_no_padding);
     tcase_add_test(tc_core, test_sent_message_is_padded);
     tcase_add_test(tc_core, test_sent_message_is_padded_by_default);
+    tcase_add_test(tc_core, test_generate_diag_request);
+    tcase_add_test(tc_core, test_generate_then_send_request);
     tcase_add_test(tc_core, test_send_diag_request);
     tcase_add_test(tc_core, test_send_functional_request);
     tcase_add_test(tc_core, test_send_diag_request_with_payload);
