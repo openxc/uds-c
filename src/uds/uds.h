@@ -87,7 +87,7 @@ void start_diagnostic_request(DiagnosticShims* shims,
  * sent.
  */
 DiagnosticRequestHandle diagnostic_request_pid(DiagnosticShims* shims,
-        DiagnosticPidRequestType pid_request_type, uint16_t arbitration_id,
+        DiagnosticPidRequestType pid_request_type, uint32_t arbitration_id,
         uint16_t pid, DiagnosticResponseReceived callback);
 
 /* Public: Continue to send and receive a single diagnostic request, based on a
@@ -106,7 +106,7 @@ DiagnosticRequestHandle diagnostic_request_pid(DiagnosticShims* shims,
  */
 DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         DiagnosticRequestHandle* handle,
-        const uint16_t arbitration_id, const uint8_t data[],
+        const uint32_t arbitration_id, const uint8_t data[],
         const uint8_t size);
 
 /* Public: Parse the entier payload of the reponse as a single integer.
@@ -144,6 +144,12 @@ void diagnostic_request_to_string(const DiagnosticRequest* request,
  * does not use a numerical value (e.g. VIN).
  */
 float diagnostic_decode_obd2_pid(const DiagnosticResponse* response);
+
+/* Public: Returns true if the "fingerprint" of the two diagnostic messages
+ * matches - the arbitration_id, mode and pid (or lack of pid).
+ */
+bool diagnostic_request_equals(const DiagnosticRequest* ours,
+        const DiagnosticRequest* theirs);
 
 #ifdef __cplusplus
 }

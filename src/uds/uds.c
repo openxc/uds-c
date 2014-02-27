@@ -32,7 +32,7 @@ DiagnosticShims diagnostic_init_shims(LogShim log,
 
 static void setup_receive_handle(DiagnosticRequestHandle* handle) {
     if(handle->request.arbitration_id == OBD2_FUNCTIONAL_BROADCAST_ID) {
-        uint16_t response_id;
+        uint32_t response_id;
         for(response_id = 0;
                 response_id < OBD2_FUNCTIONAL_RESPONSE_COUNT; ++response_id) {
             handle->isotp_receive_handles[response_id] = isotp_receive(
@@ -142,7 +142,7 @@ DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
 }
 
 DiagnosticRequestHandle diagnostic_request_pid(DiagnosticShims* shims,
-        DiagnosticPidRequestType pid_request_type, uint16_t arbitration_id,
+        DiagnosticPidRequestType pid_request_type, uint32_t arbitration_id,
         uint16_t pid, DiagnosticResponseReceived callback) {
     DiagnosticRequest request = {
         arbitration_id: arbitration_id,
@@ -214,7 +214,7 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
 }
 
 DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
-        DiagnosticRequestHandle* handle, const uint16_t arbitration_id,
+        DiagnosticRequestHandle* handle, const uint32_t arbitration_id,
         const uint8_t data[], const uint8_t size) {
 
     DiagnosticResponse response = {
@@ -373,3 +373,11 @@ void diagnostic_request_to_string(const DiagnosticRequest* request,
     }
 }
 
+bool diagnostic_request_equals(const DiagnosticRequest* ours,
+        const DiagnosticRequest* theirs) {
+    bool equals = ours->arbitration_id == theirs->arbitration_id &&
+        ours->mode == theirs->mode;
+    equals &= ours->has_pid == theirs->has_pid;
+    equals &= ours->pid == theirs->pid;
+    return equals;
+}

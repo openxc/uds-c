@@ -7,7 +7,7 @@
 
 DiagnosticShims SHIMS;
 
-uint16_t last_can_frame_sent_arb_id;
+uint32_t last_can_frame_sent_arb_id;
 uint8_t last_can_payload_sent[8];
 uint8_t last_can_payload_size;
 bool can_frame_was_sent;
@@ -23,7 +23,7 @@ void debug(const char* format, ...) {
     va_end(args);
 }
 
-bool mock_send_can(const uint16_t arbitration_id, const uint8_t* data,
+bool mock_send_can(const uint32_t arbitration_id, const uint8_t* data,
         const uint8_t size) {
     can_frame_was_sent = true;
     last_can_frame_sent_arb_id = arbitration_id;

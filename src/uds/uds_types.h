@@ -49,7 +49,7 @@ typedef enum {
  * type - the type of the request (TODO unused)
  */
 typedef struct {
-    uint16_t arbitration_id;
+    uint32_t arbitration_id;
     uint8_t mode;
     bool has_pid;
     uint16_t pid;
@@ -105,7 +105,7 @@ typedef enum {
 typedef struct {
     bool completed;
     bool success;
-    uint16_t arbitration_id;
+    uint32_t arbitration_id;
     uint8_t mode;
     bool has_pid;
     uint16_t pid;
