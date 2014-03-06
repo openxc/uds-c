@@ -151,6 +151,13 @@ float diagnostic_decode_obd2_pid(const DiagnosticResponse* response);
 bool diagnostic_request_equals(const DiagnosticRequest* ours,
         const DiagnosticRequest* theirs);
 
+/* Public: Returns true if the request has been completely sent - if false, make
+ * sure you called start_diagnostic_request once to start it, and then pass
+ * incoming CAN messages to it with diagnostic_receive_can_frame(...) so it can
+ * continue the ISO-TP transfer.
+ */
+bool diagnostic_request_sent(DiagnosticRequestHandle* handle);
+
 #ifdef __cplusplus
 }
 #endif

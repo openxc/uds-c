@@ -92,6 +92,10 @@ static void send_diagnostic_request(DiagnosticShims* shims,
     }
 }
 
+bool diagnostic_request_sent(DiagnosticRequestHandle* handle) {
+    return handle->isotp_send_handle.completed;
+}
+
 void start_diagnostic_request(DiagnosticShims* shims,
         DiagnosticRequestHandle* handle) {
     handle->success = false;
