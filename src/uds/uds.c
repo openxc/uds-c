@@ -53,7 +53,7 @@ static void setup_receive_handle(DiagnosticRequestHandle* handle) {
 static uint16_t autoset_pid_length(uint8_t mode, uint16_t pid,
         uint8_t pid_length) {
     if(pid_length == 0) {
-        if(pid > 0xffff || mode > 10) {
+        if(pid > 0xffff || (mode != 0x3e && mode > 0xa)) {
             pid_length = 2;
         } else {
             pid_length = 1;
