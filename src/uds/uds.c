@@ -307,7 +307,7 @@ float diagnostic_decode_obd2_pid(const DiagnosticResponse* response) {
         case 0x62:
             return response->payload[0] - 125;
         default:
-            return 0;
+            return diagnostic_payload_to_integer(response);
     }
 }
 
