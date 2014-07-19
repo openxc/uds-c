@@ -6,6 +6,3 @@ before_install:
     - git submodule update --init
     - sudo apt-get update -qq
     - sudo apt-get install check
-notifications:
-  hipchat:
-    - secure: "ZO/hEAoOTZ4FJytMW0m4LZrsdFVM1/V0Hu13zfj8mdcHkf2MyfxthPDecnn5\naZVn4P8mSSwpp39EnAfa9fBcWcDESnKM1YQKPPGkoxZZHIOd2rYhRv34XfpE\n5qNLkQ/lEPQCBEmvIQ5ZJxsiZjGhO7KxWvdNdruH6cdVCYSh4Xo="
