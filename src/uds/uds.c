@@ -314,8 +314,8 @@ float diagnostic_decode_obd2_pid(const DiagnosticResponse* response) {
 void diagnostic_response_to_string(const DiagnosticResponse* response,
         char* destination, size_t destination_length) {
     int bytes_used = snprintf(destination, destination_length,
-            "arb_id: 0x%" SCNd32 ", mode: 0x%x, ",
-            response->arbitration_id,
+            "arb_id: 0x%lx, mode: 0x%x, ",
+            (unsigned long) response->arbitration_id,
             response->mode);
 
     if(response->has_pid) {
@@ -351,8 +351,8 @@ void diagnostic_response_to_string(const DiagnosticResponse* response,
 void diagnostic_request_to_string(const DiagnosticRequest* request,
         char* destination, size_t destination_length) {
     int bytes_used = snprintf(destination, destination_length,
-            "arb_id: 0x%" SCNd32 ", mode: 0x%x, ",
-            request->arbitration_id,
+            "arb_id: 0x%lx, mode: 0x%x, ",
+            (unsigned long) request->arbitration_id,
             request->mode);
 
     if(request->has_pid) {
