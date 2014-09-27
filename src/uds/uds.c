@@ -84,7 +84,14 @@ static void send_diagnostic_request(DiagnosticShims* shims,
             handle->request.arbitration_id, payload,
             1 + handle->request.payload_length + handle->request.pid_length,
             NULL);
-    if(shims->log != NULL) {
+    if(handle->isotp_send_handle.completed &&
+            !handle->isotp_send_handle.success) {
+        handle->completed = true;
+        handle->success = false;
+        if(shims->log != NULL) {
+            shims->log("%s", "Diagnostic request not sent");
+        }
+    } else if(shims->log != NULL) {
         char request_string[128] = {0};
         diagnostic_request_to_string(&handle->request, request_string,
                 sizeof(request_string));
@@ -101,7 +108,9 @@ void start_diagnostic_request(DiagnosticShims* shims,
     handle->success = false;
     handle->completed = false;
     send_diagnostic_request(shims, handle);
-    setup_receive_handle(handle);
+    if(!handle->completed) {
+        setup_receive_handle(handle);
+    }
 }
 
 DiagnosticRequestHandle generate_diagnostic_request(DiagnosticShims* shims,
