@@ -76,8 +76,7 @@ START_TEST (test_send_functional_request)
     fail_if(last_response_was_received);
     const uint8_t can_data[] = {0x2, request.mode + 0x40, 0x23};
     for(uint16_t filter = OBD2_FUNCTIONAL_RESPONSE_START; filter <
-            OBD2_FUNCTIONAL_RESPONSE_START + OBD2_FUNCTIONAL_RESPONSE_COUNT;
-            filter++) {
+            OBD2_FUNCTIONAL_RESPONSE_START + 20; filter++) {
         DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS,
                 &handle, filter, can_data, sizeof(can_data));
         fail_unless(response.success);

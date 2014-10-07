@@ -33,18 +33,14 @@ DiagnosticShims diagnostic_init_shims(LogShim log,
 
 static void setup_receive_handle(DiagnosticRequestHandle* handle) {
     if(handle->request.arbitration_id == OBD2_FUNCTIONAL_BROADCAST_ID) {
-        uint32_t response_id;
-        for(response_id = 0;
-                response_id < OBD2_FUNCTIONAL_RESPONSE_COUNT; ++response_id) {
-            handle->isotp_receive_handles[response_id] = isotp_receive(
-                    &handle->isotp_shims,
-                    OBD2_FUNCTIONAL_RESPONSE_START + response_id,
-                    NULL);
-        }
-        handle->isotp_receive_handle_count = OBD2_FUNCTIONAL_RESPONSE_COUNT;
+        handle->isotp_receive_handle = isotp_receive(
+                &handle->isotp_shims,
+                // TODO need to setup a single wildcard receive handle that accepts any
+                // ID matching the mode and pid, if set.
+                0xff,
+                NULL);
     } else {
-        handle->isotp_receive_handle_count = 1;
-        handle->isotp_receive_handles[0] = isotp_receive(&handle->isotp_shims,
+        handle->isotp_receive_handle = isotp_receive(&handle->isotp_shims,
                 handle->request.arbitration_id + ARBITRATION_ID_OFFSET,
                 NULL);
     }
@@ -241,41 +237,35 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         isotp_continue_send(&handle->isotp_shims,
                 &handle->isotp_send_handle, arbitration_id, data, size);
     } else {
-        uint8_t i;
-        for(i = 0; i < handle->isotp_receive_handle_count; ++i) {
-            IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
-                    &handle->isotp_receive_handles[i], arbitration_id, data,
-                    size);
+        IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
+                &handle->isotp_receive_handle, arbitration_id, data, size);
 
-            if(message.completed) {
-                if(message.size > 0) {
-                    response.mode = message.payload[0];
-                    if(handle_negative_response(&message, &response, shims) ||
-                            handle_positive_response(handle, &message,
-                                &response, shims)) {
-                        if(shims->log != NULL) {
-                            char response_string[128] = {0};
-                            diagnostic_response_to_string(&response,
-                                    response_string, sizeof(response_string));
-                            shims->log("Diagnostic response received: %s",
-                                    response_string);
-                        }
-
-                        handle->success = true;
-                        handle->completed = true;
-                    }
-                } else {
+        if(message.completed) {
+            if(message.size > 0) {
+                response.mode = message.payload[0];
+                if(handle_negative_response(&message, &response, shims) ||
+                        handle_positive_response(handle, &message,
+                            &response, shims)) {
                     if(shims->log != NULL) {
-                        shims->log("Received an empty response on arb ID 0x%x",
-                                response.arbitration_id);
+                        char response_string[128] = {0};
+                        diagnostic_response_to_string(&response,
+                                response_string, sizeof(response_string));
+                        shims->log("Diagnostic response received: %s",
+                                response_string);
                     }
-                }
 
-                if(handle->completed && handle->callback != NULL) {
-                    handle->callback(&response);
+                    handle->success = true;
+                    handle->completed = true;
                 }
+            } else {
+                if(shims->log != NULL) {
+                    shims->log("Received an empty response on arb ID 0x%x",
+                            response.arbitration_id);
+                }
+            }
 
-                break;
+            if(handle->completed && handle->callback != NULL) {
+                handle->callback(&response);
             }
         }
     }

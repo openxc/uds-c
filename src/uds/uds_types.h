@@ -12,7 +12,6 @@ extern "C" {
 // TODO This isn't true for multi frame messages - we may need to dynamically
 // allocate this in the future
 #define MAX_UDS_PAYLOAD_LENGTH 7
-#define MAX_RESPONDING_ECU_COUNT 8
 #define VIN_LENGTH 17
 
 /* Private: The four main types of diagnositc requests that determine how the
@@ -162,8 +161,7 @@ typedef struct {
     // Private
     IsoTpShims isotp_shims;
     IsoTpSendHandle isotp_send_handle;
-    IsoTpReceiveHandle isotp_receive_handles[MAX_RESPONDING_ECU_COUNT];
-    uint8_t isotp_receive_handle_count;
+    IsoTpReceiveHandle isotp_receive_handle;
     DiagnosticResponseReceived callback;
     // DiagnosticMilStatusReceived mil_status_callback;
     // DiagnosticVinReceived vin_callback;
