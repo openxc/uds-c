@@ -9,9 +9,10 @@
 extern "C" {
 #endif
 
-// TODO This isn't true for multi frame messages - we may need to dynamically
-// allocate this in the future
-#define MAX_UDS_PAYLOAD_LENGTH 7
+// TODO This still doesn't have enough space for the largest possible 
+// multiframe response. May need to dynamically allocate in the future.
+#define MAX_UDS_RESPONSE_PAYLOAD_LENGTH 255
+#define MAX_UDS_REQUEST_PAYLOAD_LENGTH 7
 #define MAX_RESPONDING_ECU_COUNT 8
 #define VIN_LENGTH 17
 
@@ -54,7 +55,7 @@ typedef struct {
     bool has_pid;
     uint16_t pid;
     uint8_t pid_length;
-    uint8_t payload[MAX_UDS_PAYLOAD_LENGTH];
+    uint8_t payload[MAX_UDS_REQUEST_PAYLOAD_LENGTH];
     uint8_t payload_length;
     bool no_frame_padding;
     DiagnosticRequestType type;
@@ -111,7 +112,7 @@ typedef struct {
     bool has_pid;
     uint16_t pid;
     DiagnosticNegativeResponseCode negative_response_code;
-    uint8_t payload[MAX_UDS_PAYLOAD_LENGTH];
+    uint8_t payload[MAX_UDS_RESPONSE_PAYLOAD_LENGTH];
     uint8_t payload_length;
 } DiagnosticResponse;
 
