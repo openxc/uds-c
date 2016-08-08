@@ -71,7 +71,6 @@ static void send_diagnostic_request(DiagnosticShims* shims,
     if(handle->request.has_pid) {
         handle->request.pid_length = autoset_pid_length(handle->request.mode,
                 handle->request.pid, handle->request.pid_length);
-        handle->request.pid_length = handle->request.pid_length;
         set_bitfield(handle->request.pid, PID_BYTE_INDEX * CHAR_BIT,
                 handle->request.pid_length * CHAR_BIT, payload,
                 sizeof(payload));
