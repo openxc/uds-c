@@ -234,6 +234,7 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
 
     DiagnosticResponse response = {
         arbitration_id: arbitration_id,
+        multi_frame: false,
         success: false,
         completed: false
     };
@@ -247,6 +248,7 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
             IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
                     &handle->isotp_receive_handles[i], arbitration_id, data,
                     size);
+            response.multi_frame = message.multi_frame;
 
             if(message.completed) {
                 if(message.size > 0) {

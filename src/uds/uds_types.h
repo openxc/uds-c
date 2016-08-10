@@ -93,6 +93,8 @@ typedef enum {
  *      field isn't valid if 'completed' isn't true. If this is 'false', check
  *      the negative_response_code field for the reason.
  * arbitration_id - The arbitration ID the response was received on.
+ * multi_frame - True if this response (whether completed or not) required
+ *      multi-frame CAN support. Can be used for updating time-out functions.
  * mode - The OBD-II mode for the original request.
  * has_pid - If this is a response to a PID request, this will be true and the
  *      'pid' field will be valid.
@@ -107,6 +109,7 @@ typedef enum {
 typedef struct {
     bool completed;
     bool success;
+    bool multi_frame;
     uint32_t arbitration_id;
     uint8_t mode;
     bool has_pid;
