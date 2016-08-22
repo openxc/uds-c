@@ -419,6 +419,65 @@ START_TEST (test_payload_to_integer)
 }
 END_TEST
 
+START_TEST (test_response_multi_frame)
+{
+    DiagnosticRequest request = {
+        arbitration_id: 0x100,
+        mode: OBD2_MODE_VEHICLE_INFORMATION,
+        has_pid: true,
+        pid: 0x2
+    };
+    DiagnosticRequestHandle handle = diagnostic_request(&SHIMS, &request,
+            response_received_handler);
+
+    const uint8_t can_data[] = {0x10, 0x14, 0x9 + 0x40, 0x2, 0x1, 0x31, 0x46, 0x4d};
+    DiagnosticResponse response = diagnostic_receive_can_frame(&SHIMS, &handle,
+            request.arbitration_id + 0x8, can_data, sizeof(can_data));
+
+    fail_unless(can_frame_was_sent);
+    fail_unless(!response.success);
+    fail_unless(!response.completed);
+    fail_unless(response.multi_frame);
+    ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
+    ck_assert_int_eq(last_can_payload_sent[0], 0x30);
+
+    const uint8_t can_data_1[] = {0x21, 0x43, 0x55, 0x39, 0x4a, 0x39, 0x34, 0x48};
+    response = diagnostic_receive_can_frame(&SHIMS, &handle,
+            request.arbitration_id + 0x8, can_data_1, sizeof(can_data_1));
+    fail_unless(!response.success);
+    fail_unless(!response.completed);
+    fail_unless(response.multi_frame);
+
+    const uint8_t can_data_2[] = {0x22, 0x55, 0x41, 0x30, 0x34, 0x35, 0x32, 0x34};
+    response = diagnostic_receive_can_frame(&SHIMS, &handle,
+            request.arbitration_id + 0x8, can_data_2, sizeof(can_data_2));
+    fail_unless(response.success);
+    fail_unless(response.completed);
+    fail_unless(response.multi_frame);
+    ck_assert_int_eq(response.mode, OBD2_MODE_VEHICLE_INFORMATION);
+    ck_assert_int_eq(response.pid, 0x2);
+    ck_assert_int_eq(response.payload_length, 18);
+    ck_assert_int_eq(response.payload[0], 0x01);
+    ck_assert_int_eq(response.payload[1], 0x31);
+    ck_assert_int_eq(response.payload[2], 0x46);
+    ck_assert_int_eq(response.payload[3], 0x4d);
+    ck_assert_int_eq(response.payload[4], 0x43);
+    ck_assert_int_eq(response.payload[5], 0x55);
+    ck_assert_int_eq(response.payload[6], 0x39);
+    ck_assert_int_eq(response.payload[7], 0x4a);
+    ck_assert_int_eq(response.payload[8], 0x39);
+    ck_assert_int_eq(response.payload[9], 0x34);
+    ck_assert_int_eq(response.payload[10], 0x48);
+    ck_assert_int_eq(response.payload[11], 0x55);
+    ck_assert_int_eq(response.payload[12], 0x41);
+    ck_assert_int_eq(response.payload[13], 0x30);
+    ck_assert_int_eq(response.payload[14], 0x34);
+    ck_assert_int_eq(response.payload[15], 0x35);
+    ck_assert_int_eq(response.payload[16], 0x32);
+    ck_assert_int_eq(response.payload[17], 0x34);
+}
+END_TEST
+
 Suite* testSuite(void) {
     Suite* s = suite_create("uds");
     TCase *tc_core = tcase_create("core");
@@ -441,6 +500,7 @@ Suite* testSuite(void) {
     tcase_add_test(tc_core, test_wrong_pid_then_right_completes);
     tcase_add_test(tc_core, test_negative_response);
     tcase_add_test(tc_core, test_payload_to_integer);
+    tcase_add_test(tc_core, test_response_multi_frame);
 
     // TODO these are future work:
     // TODO test request MIL
