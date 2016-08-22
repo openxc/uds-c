@@ -242,14 +242,26 @@ START_TEST (test_autoset_pid_length)
         arbitration_id: 0x100,
         mode: 0x22,
         has_pid: true,
-        pid: 2,
+        pid: 0x1234,
         no_frame_padding: true
     };
     diagnostic_request(&SHIMS, &request, response_received_handler);
 
     ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
     ck_assert_int_eq(last_can_payload_sent[1], request.mode);
+    ck_assert_int_eq(last_can_payload_sent[2], (request.pid & 0xFF00) >> 8);
+    ck_assert_int_eq(last_can_payload_sent[3], request.pid & 0xFF);
     ck_assert_int_eq(last_can_payload_size, 4);
+
+    request.arbitration_id = 0x101;
+    request.pid = 0x12;
+
+    diagnostic_request(&SHIMS, &request, response_received_handler);
+
+    ck_assert_int_eq(last_can_frame_sent_arb_id, request.arbitration_id);
+    ck_assert_int_eq(last_can_payload_sent[1], request.mode);
+    ck_assert_int_eq(last_can_payload_sent[2], request.pid);
+    ck_assert_int_eq(last_can_payload_size, 3);
 }
 END_TEST
 
@@ -279,10 +291,10 @@ START_TEST (test_request_pid_enhanced)
 {
     uint16_t arb_id = 0x100;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
-            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
+            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x1234, response_received_handler);
 
     fail_if(last_response_was_received);
-    const uint8_t can_data[] = {0x4, 0x22 + 0x40, 0x0, 0x2, 0x45};
+    const uint8_t can_data[] = {0x4, 0x22 + 0x40, 0x12, 0x34, 0x45};
     diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
             sizeof(can_data));
     fail_unless(last_response_was_received);
@@ -291,7 +303,7 @@ START_TEST (test_request_pid_enhanced)
             arb_id + 0x8);
     ck_assert_int_eq(last_response_received.mode, 0x22);
     fail_unless(last_response_received.has_pid);
-    ck_assert_int_eq(last_response_received.pid, 0x2);
+    ck_assert_int_eq(last_response_received.pid, 0x1234);
     ck_assert_int_eq(last_response_received.payload_length, 1);
     ck_assert_int_eq(last_response_received.payload[0], can_data[4]);
 }
@@ -301,10 +313,10 @@ START_TEST (test_wrong_mode_response)
 {
     uint16_t arb_id = 0x100;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
-            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
+            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x1234, response_received_handler);
 
     fail_if(last_response_was_received);
-    const uint8_t can_data[] = {0x4, 0x1 + 0x40, 0x0, 0x2, 0x45};
+    const uint8_t can_data[] = {0x4, 0x1 + 0x40, 0x12, 0x34, 0x45};
     diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
             sizeof(can_data));
     fail_if(last_response_was_received);
@@ -316,7 +328,7 @@ START_TEST (test_missing_pid)
 {
     uint16_t arb_id = 0x100;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
-            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
+            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x1234, response_received_handler);
 
     fail_if(last_response_was_received);
     const uint8_t can_data[] = {0x1, 0x22 + 0x40};
@@ -331,10 +343,10 @@ START_TEST (test_wrong_pid_response)
 {
     uint16_t arb_id = 0x100;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
-            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
+            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x1234, response_received_handler);
 
     fail_if(last_response_was_received);
-    const uint8_t can_data[] = {0x4, 0x22 + 0x40, 0x0, 0x3, 0x45};
+    const uint8_t can_data[] = {0x4, 0x22 + 0x40, 0x12, 0x33, 0x45};
     diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
             sizeof(can_data));
     fail_if(last_response_was_received);
@@ -346,23 +358,23 @@ START_TEST (test_wrong_pid_then_right_completes)
 {
     uint16_t arb_id = 0x100;
     DiagnosticRequestHandle handle = diagnostic_request_pid(&SHIMS,
-            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x2, response_received_handler);
+            DIAGNOSTIC_ENHANCED_PID, arb_id, 0x1234, response_received_handler);
 
     fail_if(last_response_was_received);
-    uint8_t can_data[] = {0x4, 0x22 + 0x40, 0x0, 0x3, 0x45};
+    uint8_t can_data[] = {0x4, 0x22 + 0x40, 0x12, 0x33, 0x45};
     diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
             sizeof(can_data));
     fail_if(last_response_was_received);
     fail_if(handle.completed);
 
-    can_data[3] = 0x2;
+    can_data[3] = 0x34;
     diagnostic_receive_can_frame(&SHIMS, &handle, arb_id + 0x8, can_data,
             sizeof(can_data));
     fail_unless(last_response_was_received);
     fail_unless(handle.completed);
     fail_unless(handle.success);
     fail_unless(last_response_received.success);
-    ck_assert_int_eq(last_response_received.pid, 0x2);
+    ck_assert_int_eq(last_response_received.pid, 0x1234);
 }
 END_TEST
 
