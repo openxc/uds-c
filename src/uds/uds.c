@@ -53,7 +53,9 @@ static void setup_receive_handle(DiagnosticRequestHandle* handle) {
 static uint16_t autoset_pid_length(uint8_t mode, uint16_t pid,
         uint8_t pid_length) {
     if(pid_length == 0) {
-        if(pid > 0xffff || (mode != 0x3e && mode > 0xa)) {
+        if(mode <= 0xa || mode == 0x3e ) {
+            pid_length = 1;
+        } else if(pid > 0xffff || ((pid & 0xFF00) > 0x0)) {
             pid_length = 2;
         } else {
             pid_length = 1;
@@ -69,7 +71,6 @@ static void send_diagnostic_request(DiagnosticShims* shims,
     if(handle->request.has_pid) {
         handle->request.pid_length = autoset_pid_length(handle->request.mode,
                 handle->request.pid, handle->request.pid_length);
-        handle->request.pid_length = handle->request.pid_length;
         set_bitfield(handle->request.pid, PID_BYTE_INDEX * CHAR_BIT,
                 handle->request.pid_length * CHAR_BIT, payload,
                 sizeof(payload));
@@ -233,6 +234,7 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
 
     DiagnosticResponse response = {
         arbitration_id: arbitration_id,
+        multi_frame: false,
         success: false,
         completed: false
     };
@@ -246,6 +248,7 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
             IsoTpMessage message = isotp_continue_receive(&handle->isotp_shims,
                     &handle->isotp_receive_handles[i], arbitration_id, data,
                     size);
+            response.multi_frame = message.multi_frame;
 
             if(message.completed) {
                 if(message.size > 0) {

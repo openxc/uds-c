@@ -1,5 +1,9 @@
 # OBD-II Support Library in C
 
+## v0.2
+
+* Add support for multi-frame diagnostic responses.
+
 ## v0.1
 
 * Initial release
