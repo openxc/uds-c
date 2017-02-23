@@ -12,7 +12,7 @@ extern "C" {
 // TODO This still doesn't have enough space for the largest possible 
 // multiframe response. May need to dynamically allocate in the future.
 #define MAX_UDS_RESPONSE_PAYLOAD_LENGTH 127
-#define MAX_UDS_REQUEST_PAYLOAD_LENGTH 7
+#define MAX_UDS_REQUEST_PAYLOAD_LENGTH 34
 #define MAX_RESPONDING_ECU_COUNT 8
 #define VIN_LENGTH 17
 
