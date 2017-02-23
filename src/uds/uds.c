@@ -10,15 +10,22 @@
 #define ARBITRATION_ID_OFFSET 0x8
 #define MODE_RESPONSE_OFFSET 0x40
 #define NEGATIVE_RESPONSE_MODE 0x7f
-#define MAX_DIAGNOSTIC_PAYLOAD_SIZE 6
+#define MAX_DIAGNOSTIC_PAYLOAD_SIZE 34
 #define MODE_BYTE_INDEX 0
 #define PID_BYTE_INDEX 1
 #define NEGATIVE_RESPONSE_MODE_INDEX 1
 #define NEGATIVE_RESPONSE_NRC_INDEX 2
+#define OUR_MAX_ISO_TP_MESSAGE_SIZE 127
 
 #ifndef MAX
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #endif
+
+// global variables necessary for multi-frame can write
+uint32_t arbitration_id_cpy;
+uint8_t payload_cpy[OUR_MAX_ISO_TP_MESSAGE_SIZE];
+uint16_t size_cpy;
+
 
 DiagnosticShims diagnostic_init_shims(LogShim log,
         SendCanMessageShim send_can_message,
@@ -81,10 +88,17 @@ static void send_diagnostic_request(DiagnosticShims* shims,
                 handle->request.payload, handle->request.payload_length);
     }
 
+	// send first can frame in write sequence and populate the handle
     handle->isotp_send_handle = isotp_send(&handle->isotp_shims,
             handle->request.arbitration_id, payload,
             1 + handle->request.payload_length + handle->request.pid_length,
             NULL);
+		
+		// set the global variables for multi-frame write
+		arbitration_id_cpy = handle->isotp_send_handle.message_ptr->arbitration_id;
+		size_cpy = handle->isotp_send_handle.message_ptr->size;
+		memcpy(&payload_cpy,handle->isotp_send_handle.message_ptr->payload,size_cpy);
+	
     if(handle->isotp_send_handle.completed &&
             !handle->isotp_send_handle.success) {
         handle->completed = true;
@@ -129,23 +143,8 @@ DiagnosticRequestHandle generate_diagnostic_request(DiagnosticShims* shims,
     handle.isotp_shims.frame_padding = !request->no_frame_padding;
 
     return handle;
-    // TODO notes on multi frame:
     // TODO what are the timers for exactly?
-    //
-    // when sending multi frame, send 1 frame, wait for a response
-    // if it says send all, send all right away
-    // if it says flow control, set the time for the next send
-    // instead of creating a timer with an async callback, add a process_handle
-    // function that's called repeatedly in the main loop - if it's time to
-    // send, we do it. so there's a process_handle_send and receive_can_frame
-    // that are just called continuously from the main loop. it's a waste of a
-    // few cpu cycles but it may be more  natural than callbacks.
-    //
-    // what would a timer callback look like...it would need to pass the handle
-    // and that's all. seems like a context void* would be able to capture all
-    // of the information but arg, memory allocation. look at how it's done in
-    // the other library again
-    //
+	// original utility was multi-frame write, but we no longer use them
 }
 
 DiagnosticRequestHandle diagnostic_request(DiagnosticShims* shims,
@@ -239,9 +238,22 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         completed: false
     };
 
-    if(!handle->isotp_send_handle.completed) {
+	// if the handle isn't completed, grab the receive handle with same arb id to finish multi-frame send
+    if(!handle->isotp_send_handle.completed && (arbitration_id == handle->isotp_receive_handles[0].arbitration_id)) {
+		// if flowcontrol ack received, continue send
+		if(get_nibble(data, size, 0) == 0x3){
         isotp_continue_send(&handle->isotp_shims,
-                &handle->isotp_send_handle, arbitration_id, data, size);
+			&handle->isotp_send_handle, arbitration_id_cpy, payload_cpy, size_cpy);
+		}
+		// if not, log + complete the handle
+		else{
+			handle->isotp_shims.log("Incorrect flowcontrol response");
+			handle->isotp_send_handle.success = false;
+			handle->isotp_send_handle.completed = true;			
+		}
+		
+		// note multi-frame response so receive handle isn't dispatched
+		response.multi_frame = true;
     } else {
         uint8_t i;
         for(i = 0; i < handle->isotp_receive_handle_count; ++i) {
