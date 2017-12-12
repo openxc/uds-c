@@ -3,4 +3,4 @@
 	url = https://github.com/openxc/bitfield-c
 [submodule "deps/isotp-c"]
 	path = deps/isotp-c
-	url = https://github.com/openxc/isotp-c
+	url = https://github.com/advancedtelematic/isotp-c
