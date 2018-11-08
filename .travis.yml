@@ -1,4 +1,5 @@
 language: c
+dist: precise
 compiler:
   - gcc
 script: make test
