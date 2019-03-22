@@ -2,7 +2,7 @@ CC = gcc
 INCLUDES = -Isrc -Ideps/bitfield-c/src -Ideps/isotp-c/src
 CFLAGS = $(INCLUDES) -c -Wall -Werror -g -ggdb -std=gnu99 -coverage
 LDFLAGS = -coverage -lm
-LDLIBS = -lcheck
+LDLIBS = -lcheck -lm -lrt -lpthread
 
 TEST_DIR = tests
 TEST_OBJDIR = build
