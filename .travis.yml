@@ -1,5 +1,5 @@
 language: c
-dist: precise
+dist: xenial
 compiler:
   - gcc
 script: make test
