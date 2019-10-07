@@ -1,6 +1,3 @@
-[submodule "deps/bitfield-c"]
-	path = deps/bitfield-c
-	url = https://github.com/openxc/bitfield-c
 [submodule "deps/isotp-c"]
 	path = deps/isotp-c
 	url = https://github.com/openxc/isotp-c
