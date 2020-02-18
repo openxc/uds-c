@@ -1,5 +1,5 @@
 CC = gcc
-INCLUDES = -Isrc -Ideps/bitfield-c/src -Ideps/isotp-c/src
+INCLUDES = -Isrc -Ideps/isotp-c/deps/bitfield-c/src -Ideps/isotp-c/src
 CFLAGS = $(INCLUDES) -c -Wall -Werror -g -ggdb -std=gnu99 -coverage
 LDFLAGS = -coverage -lm
 LDLIBS = -lcheck -lm -lrt -lpthread -lsubunit
@@ -17,7 +17,7 @@ ifneq ($(OSTYPE),Darwin)
 endif
 
 SRC = $(wildcard src/**/*.c)
-SRC += $(wildcard deps/bitfield-c/src/**/*.c)
+SRC += $(wildcard deps/isotp-c/deps/bitfield-c/src/**/*.c)
 SRC += $(wildcard deps/isotp-c/src/**/*.c)
 OBJS = $(patsubst %,$(TEST_OBJDIR)/%,$(SRC:.c=.o))
 TEST_SRC = $(wildcard $(TEST_DIR)/test_*.c)
