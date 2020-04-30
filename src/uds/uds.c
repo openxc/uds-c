@@ -228,8 +228,6 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
     return response_was_positive;
 }
 
-void c_debug(char *str);
-
 DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         DiagnosticRequestHandle* handle, const uint32_t arbitration_id,
         const uint8_t data[], const uint8_t size) {
