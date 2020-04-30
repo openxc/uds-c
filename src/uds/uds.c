@@ -228,11 +228,13 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
     return response_was_positive;
 }
 
+void c_debug(char *str);
+
 DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         DiagnosticRequestHandle* handle, const uint32_t arbitration_id,
         const uint8_t data[], const uint8_t size) {
 
-    DiagnosticResponse response = {
+    DiagnosticResponse response = {     // Defined in uds_types.h
         arbitration_id: arbitration_id,
         multi_frame: false,
         success: false,
@@ -249,7 +251,6 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                     &handle->isotp_receive_handles[i], arbitration_id, data,
                     size);
             response.multi_frame = message.multi_frame;
-
             if(message.completed) {
                 if(message.size > 0) {
                     response.mode = message.payload[0];
@@ -279,6 +280,9 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                 }
 
                 break;
+            } else {  // NEW 4/25/2020- Copy partial message into the response buffer
+                memcpy(response.payload, message.payload, message.size);
+                response.payload_length = message.size;
             }
         }
     }
