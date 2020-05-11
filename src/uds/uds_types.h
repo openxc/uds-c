@@ -9,9 +9,21 @@
 extern "C" {
 #endif
 
+// April 2020 feature to pass up partial frames instead of buffering
+// until we have a complete Diagnostic Response
+#define STITCH_MULTIFRAME 1
+
+
+#if (STITCH_MULTIFRAME==1)
+// Only needs to be big enough to hold data in 1 Can message plus
+// a small 3 byte header, The full length of the response will
+// be stitiched in the client so we no longer need a large buffer
+#define MAX_UDS_RESPONSE_PAYLOAD_LENGTH 11
+#else
 // TODO This still doesn't have enough space for the largest possible 
 // multiframe response. May need to dynamically allocate in the future.
 #define MAX_UDS_RESPONSE_PAYLOAD_LENGTH 127
+#endif
 #define MAX_UDS_REQUEST_PAYLOAD_LENGTH 7
 #define MAX_RESPONDING_ECU_COUNT 8
 #define VIN_LENGTH 17
