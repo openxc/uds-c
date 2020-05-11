@@ -459,7 +459,7 @@ START_TEST (test_response_multi_frame)
     ck_assert_int_eq(response.mode, OBD2_MODE_VEHICLE_INFORMATION);
     ck_assert_int_eq(response.pid, 0x2);
 #if (STITCH_MULTIFRAME==1)
-    printf("handle->request.pid_length:%d\n",handle->request.pid_length);
+    printf("handle.request.pid_length:%d\n",handle.request.pid_length);
     printf("payload_length=%d\n", response.payload_length);
 #else
     ck_assert_int_eq(response.payload_length, 18);
