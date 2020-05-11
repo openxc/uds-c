@@ -219,6 +219,7 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
             printf("message size:%d\n",message->size);
             printf("payload index:%d\n", payload_index);
             response->payload_length = MAX(0, message->size - payload_index);
+            printf("response payload length (0):%d\n", response->payload_length);
             if(response->payload_length > 0) {
                 memcpy(response->payload, &message->payload[payload_index],
                         response->payload_length);
