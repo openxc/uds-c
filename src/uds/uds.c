@@ -216,6 +216,8 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
             response->completed = true;
 
             uint8_t payload_index = 1 + handle->request.pid_length;
+            printf("message size:%d\n",message->size);
+            printf("payload index:%d\n", payload_index);
             response->payload_length = MAX(0, message->size - payload_index);
             if(response->payload_length > 0) {
                 memcpy(response->payload, &message->payload[payload_index],
@@ -225,6 +227,7 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
             response_was_positive = false;
         }
     }
+    printf("response payload length:%d\n", response->payload_length);
     return response_was_positive;
 }
 
