@@ -461,7 +461,7 @@ START_TEST (test_response_multi_frame)
 #if (STITCH_MULTIFRAME==1)
     printf("handle.request.pid_length:%d\n",handle.request.pid_length);
     printf("payload_length=%d\n", response.payload_length);
-    ck_assert_int_eq(response.payload_length, 18);
+    ck_assert_int_eq(response.payload_length, 8);
     ck_assert_int_eq(response.payload[0], 0x01);
     ck_assert_int_eq(response.payload[1], 0x55);
     ck_assert_int_eq(response.payload[2], 0x41);
