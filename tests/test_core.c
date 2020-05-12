@@ -468,7 +468,7 @@ START_TEST (test_response_multi_frame)
     ck_assert_int_eq(response.payload[3], 0x30);
     ck_assert_int_eq(response.payload[4], 0x34);
     ck_assert_int_eq(response.payload[5], 0x35);
-    ck_assert_int_eq(response.payload[6], 0x33);
+    ck_assert_int_eq(response.payload[6], 0x32);
     ck_assert_int_eq(response.payload[7], 0x34);
 #else
     ck_assert_int_eq(response.payload_length, 18);
