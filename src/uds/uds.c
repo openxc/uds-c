@@ -20,6 +20,10 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #endif
 
+#ifndef MIN
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#endif
+
 DiagnosticShims diagnostic_init_shims(LogShim log,
         SendCanMessageShim send_can_message,
         SetTimerShim set_timer) {
@@ -216,19 +220,17 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
             response->completed = true;
 
             uint8_t payload_index = 1 + handle->request.pid_length;
-            printf("message size:%d\n",message->size);
-            printf("payload index:%d\n", payload_index);
             response->payload_length = MAX(0, message->size - payload_index);
-            printf("response payload length (0):%d\n", response->payload_length);
+            response->payload_length = MIN(MAX_UDS_RESPONSE_PAYLOAD_LENGTH,
+                                           response->payload_length);
             if(response->payload_length > 0) {
-                memcpy(response->payload, &message->payload[payload_index],
+                memcpy(response->payload, &message->payload[payload_index], 
                         response->payload_length);
             }
         } else {
             response_was_positive = false;
         }
     }
-    printf("response payload length:%d\n", response->payload_length);
     return response_was_positive;
 }
 
