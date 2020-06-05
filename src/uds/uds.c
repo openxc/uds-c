@@ -20,6 +20,10 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #endif
 
+#ifndef MIN
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#endif
+
 DiagnosticShims diagnostic_init_shims(LogShim log,
         SendCanMessageShim send_can_message,
         SetTimerShim set_timer) {
@@ -217,8 +221,10 @@ static bool handle_positive_response(DiagnosticRequestHandle* handle,
 
             uint8_t payload_index = 1 + handle->request.pid_length;
             response->payload_length = MAX(0, message->size - payload_index);
+            response->payload_length = MIN(MAX_UDS_RESPONSE_PAYLOAD_LENGTH,
+                                           response->payload_length);
             if(response->payload_length > 0) {
-                memcpy(response->payload, &message->payload[payload_index],
+                memcpy(response->payload, &message->payload[payload_index], 
                         response->payload_length);
             }
         } else {
@@ -232,7 +238,7 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
         DiagnosticRequestHandle* handle, const uint32_t arbitration_id,
         const uint8_t data[], const uint8_t size) {
 
-    DiagnosticResponse response = {
+    DiagnosticResponse response = {     // Defined in uds_types.h
         arbitration_id: arbitration_id,
         multi_frame: false,
         success: false,
@@ -249,7 +255,6 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                     &handle->isotp_receive_handles[i], arbitration_id, data,
                     size);
             response.multi_frame = message.multi_frame;
-
             if(message.completed) {
                 if(message.size > 0) {
                     response.mode = message.payload[0];
@@ -279,6 +284,9 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
                 }
 
                 break;
+            } else {  // NEW 4/25/2020- Copy partial message into the response buffer
+                memcpy(response.payload, message.payload, message.size);
+                response.payload_length = message.size;
             }
         }
     }

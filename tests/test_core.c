@@ -419,6 +419,8 @@ START_TEST (test_payload_to_integer)
 }
 END_TEST
 
+#define STITCH_MULTIFRAME 1
+
 START_TEST (test_response_multi_frame)
 {
     DiagnosticRequest request = {
@@ -456,6 +458,19 @@ START_TEST (test_response_multi_frame)
     fail_unless(response.multi_frame);
     ck_assert_int_eq(response.mode, OBD2_MODE_VEHICLE_INFORMATION);
     ck_assert_int_eq(response.pid, 0x2);
+#if (STITCH_MULTIFRAME==1)
+    printf("handle.request.pid_length:%d\n",handle.request.pid_length);
+    printf("payload_length=%d\n", response.payload_length);
+    ck_assert_int_eq(response.payload_length, 8);
+    ck_assert_int_eq(response.payload[0], 0x01);
+    ck_assert_int_eq(response.payload[1], 0x55);
+    ck_assert_int_eq(response.payload[2], 0x41);
+    ck_assert_int_eq(response.payload[3], 0x30);
+    ck_assert_int_eq(response.payload[4], 0x34);
+    ck_assert_int_eq(response.payload[5], 0x35);
+    ck_assert_int_eq(response.payload[6], 0x32);
+    ck_assert_int_eq(response.payload[7], 0x34);
+#else
     ck_assert_int_eq(response.payload_length, 18);
     ck_assert_int_eq(response.payload[0], 0x01);
     ck_assert_int_eq(response.payload[1], 0x31);
@@ -475,6 +490,8 @@ START_TEST (test_response_multi_frame)
     ck_assert_int_eq(response.payload[15], 0x35);
     ck_assert_int_eq(response.payload[16], 0x32);
     ck_assert_int_eq(response.payload[17], 0x34);
+#endif
+
 }
 END_TEST
 
