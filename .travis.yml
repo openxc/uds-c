@@ -1,9 +1,0 @@
-language: c
-dist: xenial
-compiler:
-  - gcc
-script: make test
-before_install:
-    - git submodule update --init
-    - sudo apt-get update -qq
-    - sudo apt-get install check
