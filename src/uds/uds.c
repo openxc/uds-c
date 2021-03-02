@@ -287,6 +287,9 @@ DiagnosticResponse diagnostic_receive_can_frame(DiagnosticShims* shims,
             } else {  // NEW 4/25/2020- Copy partial message into the response buffer
                 memcpy(response.payload, message.payload, message.size);
                 response.payload_length = message.size;
+                response.multi_frame = true;
+                if (message.size != 0)
+                    break;
             }
         }
     }
